@@ -1,0 +1,39 @@
+name: elliptic_Naive_Grad
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  num_heads: 2
+  input_dim: ??? 
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: elliptic
+  model: grad         # <--- 对应 models_map 中的 key
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/grad/
+  
+  num_epochs_per_task: 100
+  task_schedule: 
+    - [1, 5]
+    - [6, 10]
+    - [11, 15]
+    - [16, 20]
+    - [21, 25]
+    - [26, 30]
+    - [31, 35]
+    - [36, 40]
+    - [41, 45]
+    - [46, 49]
+    
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0 

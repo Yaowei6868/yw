@@ -1,0 +1,48 @@
+name: elliptic_Replay_EvolveGCN
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  # EvolveGCN 基于 GCN 骨干，不需要 num_heads，此处保留仅为格式兼容，实际不生效
+  num_heads: 0 
+  # input_dim 会在代码运行时被 self.dataset.num_node_features (166) 覆盖
+  input_dim: ???
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: elliptic
+  # [关键] 指定使用 EvolveGCN 模型 (需在 trainer.py models_map 中注册)
+  model: evolvegcn
+  device: cuda
+  # EvolveGCN 包含 RNN 结构，通常需要稍大的学习率来加速收敛
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/evolvegcn/
+  
+  # 任务调度配置 (保持一致)
+  num_epochs_per_task: 50
+  task_schedule: 
+    - [1, 5]
+    - [6, 10]
+    - [11, 15]
+    - [16, 20]
+    - [21, 25]
+    - [26, 30]
+    - [31, 35]
+    - [36, 40]
+    - [41, 45]
+    - [46, 49]
+    
+  # --- CL 策略配置 ---
+  # EvolveGCN 自带 RNN 记忆机制，通常作为 Replay 的对比基线
+  # 因此这里默认关闭外部的 CL 策略，测试其纯粹的演化能力
+  
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0       # 关闭 Replay Buffer，完全依赖模型自身的 RNN 演化

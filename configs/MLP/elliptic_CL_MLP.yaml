@@ -1,0 +1,56 @@
+name: elliptic_Replay_MLP
+
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  # MLP 是非图模型，不需要 num_heads，设为 0
+  num_heads: 0
+  # input_dim 会在代码运行时自动读取 (Elliptic为166)
+  input_dim: 166
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: elliptic
+  # [关键] 指定使用 MLP 模型
+  model: mlp
+  device: cuda
+  
+  # MLP 通常可以使用标准的学习率
+  lr: 0.001
+  weight_decay: 1e-5
+  
+  print_freq: 10
+  save_dir: weights/mlp/
+  
+  # 任务调度 (保持一致以进行公平对比)
+  num_epochs_per_task: 50
+  task_schedule: 
+    - [1, 5]
+    - [6, 10]
+    - [11, 15]
+    - [16, 20]
+    - [21, 25]
+    - [26, 30]
+    - [31, 35]
+    - [36, 40]
+    - [41, 45]
+    - [46, 49]
+    
+  # --- CL 策略配置 ---
+  
+  # 选项 A: 启用 Replay (强非图基线)
+  # 测试：单纯利用节点特征 + 记忆机制能达到多好？
+  buffer_size_per_class: 100
+  
+  # 选项 B: 禁用 Replay (弱非图基线 / Fine-tuning)
+  # 测试：如果不看图也不记旧数据，模型会忘得有多快？
+  # buffer_size_per_class: 0 
+  
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0

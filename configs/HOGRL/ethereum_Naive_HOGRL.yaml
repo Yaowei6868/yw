@@ -1,0 +1,40 @@
+name: ethereum_Naive_HOGRL
+
+dataset:
+  # EthereumDataset 只需要 root 路径
+  # 代码会自动去 data/Ethereum/raw 读取 ethereum.pkl
+  root: "data/Ethereum"
+
+model:
+  # HOGRL 专用参数
+  num_orders: 2       # 建议设为 2。因为特征主要是随机生成的，太高阶可能会引入噪声。
+  input_dim: 16       # 【⭐⭐ 核心修改 ⭐⭐】必须是 16！(代码生成的特征维度)
+  hidden_dim: 64      # 输入维数小(16)，隐藏层 64 足够了，设太大浪费显存
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: ethereum   # 对应 trainer.py 里的判断逻辑 (必须小写)
+  model: hogrl        # 对应 models_map 的 key
+  device: cuda
+  lr: 0.001           # 建议比 Elliptic (0.001) 稍大，因为特征较稀疏
+  weight_decay: 5e-4
+  print_freq: 10
+  save_dir: weights/hogrl_ethereum/
+  
+  num_epochs_per_task: 100  # 数据量较大，建议 30 Epoch 即可
+  
+  # 任务调度表
+  # 我们在 datasets.py 里把时间映射到了 0~9 (共10个时间步)
+  # 这里定义 10 个连续任务，每个任务对应 1 个时间步
+  task_schedule: 
+    - [0, 0]  
+    - [1, 1]  
+    - [2, 2]
+    - [3, 3]
+    - [4, 4]
+    - [5, 5]
+    - [6, 6]
+    - [7, 7]
+    - [8, 8]
+    - [9, 9]

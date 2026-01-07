@@ -1,0 +1,42 @@
+# 实验名称
+name: elliptic_actor_Naive_CGNN
+
+dataset:
+  root: "data/elliptic++actor" 
+
+model:
+  hidden_dim: 128     
+  output_dim: 1
+  dropout: 0.5
+  num_heads: 4        
+  num_layers: 2       
+
+train:
+  dataset: elliptic_actor  
+  model: cgnn
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/cgnn/
+
+  num_epochs_per_task: 50 
+  
+  # (对应我们在 datasets.py 里生成的 10 个模拟时间步)
+  task_schedule: 
+    - [0]
+    - [1]
+    - [2]
+    - [3]
+    - [4]
+    - [5]
+    - [6]
+    - [7]
+    - [8]
+    - [9]
+    
+  # --- 增量学习策略: Naive (无策略) ---
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0

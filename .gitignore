@@ -1,0 +1,22 @@
+# 1. 忽略数据文件夹 
+data/
+datasets/
+
+# 2. 忽略 Python 编译产生的垃圾文件
+__pycache__/
+*.pyc
+
+# 3. 忽略训练产生的日志和模型权重
+runs/
+weights/
+checkpoints/
+*.pt
+*.pth
+
+# 4. 忽略虚拟环境
+venv/
+.env
+
+# 5. 忽略 IDE 配置文件
+.vscode/
+.idea/

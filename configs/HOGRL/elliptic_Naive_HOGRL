@@ -1,0 +1,40 @@
+name: elliptic_Naive_HOGRL
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  # HOGRL 专用参数
+  num_orders: 3       # 1阶+2阶+3阶
+  input_dim: ???      # 自动推断 (166)
+  hidden_dim: 128    # 建议大一点，因为特征比较丰富
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: elliptic
+  model: hogrl        # 对应 models_map 的 key
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/hogrl/
+  
+  num_epochs_per_task: 100
+  task_schedule: 
+    - [1, 5]
+    - [6, 10]
+    - [11, 15]
+    - [16, 20]
+    - [21, 25]
+    - [26, 30]
+    - [31, 35]
+    - [36, 40]
+    - [41, 45]
+    - [46, 49]
+    
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0    
