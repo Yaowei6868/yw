@@ -29,6 +29,43 @@ from .models import (
 from .datasets import EllipticDataset,EllipticPlusActorDataset
 from .buffer import ReplayBuffer 
 
+# 在 trainer.py 顶部添加此类
+class BinaryFocalLoss(nn.Module):
+    def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):
+        """
+        :param alpha: 控制正负样本权重的平衡因子 (0 < alpha < 1)。
+                      如果 alpha=0.75，则正样本权重为 0.75，负样本为 0.25。
+        :param gamma: 聚焦参数，gamma 越大，模型越关注难分样本。
+        """
+        super(BinaryFocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, logits, targets):
+        # BCEWithLogitsLoss 包含了 Sigmoid 层，数值更稳定
+        bce_loss = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
+        
+        # 计算 pt: 如果 y=1, pt=p; 如果 y=0, pt=1-p
+        pt = torch.exp(-bce_loss) 
+        
+        # 构建 alpha 因子 tensor
+        # targets 形状为 [N, 1] 或 [N]
+        if self.alpha is not None:
+            alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+        else:
+            alpha_t = 1.0
+            
+        # Focal Loss 公式: -alpha * (1-pt)^gamma * log(pt)
+        focal_loss = alpha_t * (1 - pt) ** self.gamma * bce_loss
+
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        else:
+            return focal_loss
+
 # 模型映射表
 models_map = {
     "gcn": GCN,
@@ -421,16 +458,23 @@ class Trainer:
 
             # 3. 截断 (Clip) - 防止权重过大
             # 这里的 5.0 是给基线实验设的安全上限，您可以根据需要调整
-            clipped_weight = min(raw_ratio, 5.0) 
+            clipped_weight = min(raw_ratio, 10.0) 
             clipped_weight = max(clipped_weight, 1.0)
 
             print(f"🔧 Task {task_id+1} 动态权重: {raw_ratio:.2f} -> 截断为 {clipped_weight:.2f}")
 
             # 4. 重新定义 Loss 函数 (覆盖 __init__ 里的定义)
             # 注意：这里要用 .double() 还是 .float() 取决于您的模型精度，一般 float 即可
-            self.criterion = nn.BCEWithLogitsLoss(
-                pos_weight=torch.tensor([clipped_weight]).to(self.device)
-            )
+            # self.criterion = nn.BCEWithLogitsLoss(
+            #     pos_weight=torch.tensor([clipped_weight]).to(self.device)
+            # )
+            dynamic_alpha = clipped_weight / (1.0 + clipped_weight)
+            print(f"   -> 转换为 Focal Loss Alpha: {dynamic_alpha:.4f}")
+
+            self.criterion = BinaryFocalLoss(
+                alpha=dynamic_alpha, 
+                gamma=2.0  # gamma 通常设为 2.0，你也可以尝试 1.5 或 3.0
+            ).to(self.device)
 
             # [SNAPSHOT 构建]
             current_max_step = time_steps[-1]
