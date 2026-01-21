@@ -15,12 +15,12 @@ train:
   dataset: elliptic_actor  
   model: cgnn
   device: cuda
-  lr: 0.001
-  weight_decay: 1e-5
+  lr: 0.0002
+  weight_decay: 5e-4
   print_freq: 10
   save_dir: weights/cgnn/
 
-  num_epochs_per_task: 50 
+  num_epochs_per_task: 25 
   
   # (对应我们在 datasets.py 里生成的 10 个模拟时间步)
   task_schedule: 

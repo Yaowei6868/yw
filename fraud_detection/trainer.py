@@ -59,36 +59,46 @@ datasets_map = {
 class Trainer:
     def __init__(self, config):
         self.config = config
-
-        # 1. 实例化数据集 (适配 Elliptic++ Actor)
+        self.device = torch.device(config.train.device if torch.cuda.is_available() else "cpu")
+        # 实例化数据集 (适配 Elliptic++ Actor)
         if self.config.train.dataset == 'elliptic_actor':
             self.dataset_obj = EllipticPlusActorDataset(root='data/elliptic++actor')
-            self.dataset = self.dataset_obj[0].to(config.train.device)
+            self.dataset = self.dataset_obj[0].to(self.device)
         else:
             # 兼容旧逻辑
             self.dataset_obj = datasets_map[self.config.train.dataset](config.dataset)
-            self.dataset = self.dataset_obj.pyg_dataset().to(config.train.device)
+            self.dataset = self.dataset_obj.pyg_dataset().to(self.device)
             
         self.config.model.input_dim = self.dataset.num_node_features
 
         # 初始化模型
-        self.model = models_map[self.config.train.model](config.model).to(config.train.device)
+        self.model = models_map[self.config.train.model](config.model).to(self.device)
         
-        # 2. 自动计算 Loss 权重
+        # 计算 Loss 权重
         all_labels = self.dataset.y
         valid_mask = all_labels != -1
         y_valid = all_labels[valid_mask]
-        num_pos = (y_valid == 1).sum().item()
-        num_neg = (y_valid == 0).sum().item()
         
-        if num_pos > 0:
-            self.current_pos_weight = num_neg / num_pos
-        else:
-            self.current_pos_weight = 1.0
-        print(f"📊 自动计算的正样本权重: {self.current_pos_weight:.2f}")
+        # num_pos = (y_valid == 1).sum().item()
+        # num_neg = (y_valid == 0).sum().item()
+        # # 1. 计算原始比例
+        # if num_pos > 0:
+        #     raw_ratio = num_neg / num_pos
+        # else:
+        #     raw_ratio = 1.0  # 防止除以零
+        # # 2. 【关键】加上安全锁 (Clip)，防止权重过大导致模型发疯
+        # # 建议上限设为 5.0 或 6.0。对于 Naive 基线，保守一点更好。
+        # self.current_pos_weight = min(raw_ratio, 5.0) 
+        # self.current_pos_weight = max(self.current_pos_weight, 1.0) # 至少是 1.0
+        # print(f"原始比例: {raw_ratio:.2f} -> 截断后权重: {self.current_pos_weight:.2f}")
 
+        # self.criterion = nn.BCEWithLogitsLoss(
+        #     pos_weight=torch.tensor([clipped_weight]).to(self.device)
+        #     )
+
+        default_weight = 3.0 
         self.criterion = nn.BCEWithLogitsLoss(
-            pos_weight=torch.tensor([self.current_pos_weight]).to(config.train.device)
+            pos_weight=torch.tensor([default_weight]).to(self.device)
         )
         
         self.optimizer = optim.Adam(self.model.parameters(), lr=config.train.lr, weight_decay=config.train.weight_decay)
@@ -115,7 +125,7 @@ class Trainer:
             self.timesteps = self.dataset.timesteps
         else:
             # 兜底逻辑
-            self.timesteps = (torch.arange(self.dataset.num_nodes) * 10 // self.dataset.num_nodes).to(config.train.device)
+            self.timesteps = (torch.arange(self.dataset.num_nodes) * 10 // self.dataset.num_nodes).to(self.device)
         
         self.task_indices = {}
         for t in range(10): 
@@ -226,12 +236,12 @@ class Trainer:
         task_classified_idx = task_nodes_idx[task_classified_mask] 
         if len(task_classified_idx) == 0: return None, None 
         task_train_idx, task_valid_idx = train_test_split(task_classified_idx, test_size=0.15, random_state=42) 
-        return torch.tensor(task_train_idx, dtype=torch.long).to(self.config.train.device), \
-               torch.tensor(task_valid_idx, dtype=torch.long).to(self.config.train.device)
+        return torch.tensor(task_train_idx, dtype=torch.long).to(self.device), \
+               torch.tensor(task_valid_idx, dtype=torch.long).to(self.device)
 
     def _precompute_high_order_graphs(self, edge_index, num_nodes, order=3):
         print(f"Pre-computing high-order graphs up to order {order}...")
-        device = self.config.train.device
+        device = self.device
         val = torch.ones(edge_index.size(1), dtype=torch.double)
         adj_coo = torch.sparse_coo_tensor(edge_index.cpu(), val, (num_nodes, num_nodes)).coalesce()
         adj = adj_coo.to_sparse_csr().to(device)
@@ -375,6 +385,7 @@ class Trainer:
             # 添加当前任务的指标
             # **{f"curr_{k}": v for k, v in current_task_metrics.items()}
         }
+        return result_entry
 
     # -------------------------------------------------------------
     # 主训练循环
@@ -395,6 +406,31 @@ class Trainer:
                 continue
             
             self.task_valid_indices_map[task_id] = task_valid_idx.cpu().numpy()
+            
+            # 1. 获取当前任务的训练标签
+            y_curr = self.dataset.y[task_train_idx] # 只看当前任务的训练集
+
+            # 2. 计算比例
+            num_pos = (y_curr == 1).sum().item()
+            num_neg = (y_curr == 0).sum().item()
+
+            if num_pos > 0:
+                raw_ratio = num_neg / num_pos
+            else:
+                raw_ratio = 1.0
+
+            # 3. 截断 (Clip) - 防止权重过大
+            # 这里的 5.0 是给基线实验设的安全上限，您可以根据需要调整
+            clipped_weight = min(raw_ratio, 5.0) 
+            clipped_weight = max(clipped_weight, 1.0)
+
+            print(f"🔧 Task {task_id+1} 动态权重: {raw_ratio:.2f} -> 截断为 {clipped_weight:.2f}")
+
+            # 4. 重新定义 Loss 函数 (覆盖 __init__ 里的定义)
+            # 注意：这里要用 .double() 还是 .float() 取决于您的模型精度，一般 float 即可
+            self.criterion = nn.BCEWithLogitsLoss(
+                pos_weight=torch.tensor([clipped_weight]).to(self.device)
+            )
 
             # [SNAPSHOT 构建]
             current_max_step = time_steps[-1]
@@ -433,7 +469,7 @@ class Trainer:
                 current_train_idx = torch.cat([task_train_idx, replay_idx])
                 
                 if self.config.train.model == 'pmp':
-                    pmp_mask = torch.zeros(self.dataset.num_nodes, dtype=torch.bool, device=self.config.train.device)
+                    pmp_mask = torch.zeros(self.dataset.num_nodes, dtype=torch.bool, device=self.device)
                     pmp_mask[current_train_idx] = True
                     self.dataset.pmp_mask = pmp_mask 
 
@@ -541,6 +577,7 @@ class Trainer:
                 if self.config.train.model == 'consisgad': total_loss += 1.0 * consis_loss
                 
                 total_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 self.optimizer.step()
                 self.scheduler.step(total_loss)
 
