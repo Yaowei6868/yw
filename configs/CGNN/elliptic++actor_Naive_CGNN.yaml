@@ -5,24 +5,27 @@ dataset:
   root: "data/elliptic++actor" 
 
 model:
-  hidden_dim: 128     
+  # CGNN 专用配置 (对应我们刚修改的 models.py)
+  # 必须是偶数 (因为代码里有 split // 2 操作)
+  hidden_dim: 128      
   output_dim: 1
   dropout: 0.5
-  num_heads: 4        
-  num_layers: 2       
+  # 下面这两个参数虽然 CGNN 用不到，但留着防止 parser 报错
+  num_heads: 1         
+  num_layers: 1
 
 train:
   dataset: elliptic_actor  
   model: cgnn
   device: cuda
-  lr: 0.0002
+  lr: 0.001
   weight_decay: 5e-4
   print_freq: 10
   save_dir: weights/cgnn/
-
+  
   num_epochs_per_task: 25 
   
-  # (对应我们在 datasets.py 里生成的 10 个模拟时间步)
+  # 【关键修复】必须包含任务调度表，否则 Trainer 会报错
   task_schedule: 
     - [0]
     - [1]
@@ -37,6 +40,8 @@ train:
     
   # --- 增量学习策略: Naive (无策略) ---
   ewc_lambda: 0.0
-  lwf_alpha: 0.0
-  lwf_temperature: 1.0
   buffer_size_per_class: 0
+  
+  # --- CGNN 特有 Loss 权重 ---
+  cgnn_lambda: 0.1  # CSD Loss (语义分解对比损失)
+  cgnn_beta: 0.1    # Consistency Loss (一致性损失)

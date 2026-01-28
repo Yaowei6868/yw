@@ -100,7 +100,8 @@ class Trainer:
         # 实例化数据集 (适配 Elliptic++ Actor)
         if self.config.train.dataset == 'elliptic_actor':
             self.dataset_obj = EllipticPlusActorDataset(root='data/elliptic++actor')
-            self.dataset = self.dataset_obj[0].to(self.device)
+            # 先放在 CPU 上，等到 train loop 里再把 snapshot 搬运到 GPU
+            self.dataset = self.dataset_obj[0]
         else:
             # 兼容旧逻辑
             self.dataset_obj = datasets_map[self.config.train.dataset](config.dataset)
@@ -115,23 +116,6 @@ class Trainer:
         all_labels = self.dataset.y
         valid_mask = all_labels != -1
         y_valid = all_labels[valid_mask]
-        
-        # num_pos = (y_valid == 1).sum().item()
-        # num_neg = (y_valid == 0).sum().item()
-        # # 1. 计算原始比例
-        # if num_pos > 0:
-        #     raw_ratio = num_neg / num_pos
-        # else:
-        #     raw_ratio = 1.0  # 防止除以零
-        # # 2. 【关键】加上安全锁 (Clip)，防止权重过大导致模型发疯
-        # # 建议上限设为 5.0 或 6.0。对于 Naive 基线，保守一点更好。
-        # self.current_pos_weight = min(raw_ratio, 5.0) 
-        # self.current_pos_weight = max(self.current_pos_weight, 1.0) # 至少是 1.0
-        # print(f"原始比例: {raw_ratio:.2f} -> 截断后权重: {self.current_pos_weight:.2f}")
-
-        # self.criterion = nn.BCEWithLogitsLoss(
-        #     pos_weight=torch.tensor([clipped_weight]).to(self.device)
-        #     )
 
         default_weight = 3.0 
         self.criterion = nn.BCEWithLogitsLoss(
@@ -152,10 +136,15 @@ class Trainer:
         self.old_model = None    
 
         # [CL 评估专用]
+        self.num_tasks = len(self.config.train.task_schedule)
+        self.f1_matrix = np.zeros((self.num_tasks, self.num_tasks))
+        
+        # [任务划分]
         self.task_schedule = config.train.task_schedule
         self.task_valid_indices_map = {} 
         self.recall_matrix = [] 
         self.aggregate_metrics_history = []
+        
         
         # [初始化任务划分]
         if hasattr(self.dataset, 'timesteps'):
@@ -331,96 +320,212 @@ class Trainer:
     # -------------------------------------------------------------
     # 核心评估逻辑：计算遗忘度和平均性能
     # -------------------------------------------------------------
+    # def evaluate_cl_metrics(self, current_task_id, task_duration):
+    #     print(f"\n--- [CL Evaluation] Evaluating on all seen tasks (0 to {current_task_id}) ---")
+    #     self.model.eval()
+        
+    #     # 初始化记录列表 (对应 compute_metrics 返回的 key)
+    #     row_metrics = {
+    #         "precision": [], "recall": [], "f1": [], 
+    #         "macro_recall": [], "macro_f1": [], 
+    #         "g_mean": [], "auc_roc": [], "auc_pr": [], 
+    #         "total_cost": [], "avg_cost": []
+    #     }
+
+    #     with torch.no_grad():
+    #         # Snapshot 构建
+    #         current_max_step = self.task_schedule[current_task_id][-1]
+    #         valid_node_mask = self.dataset.timesteps <= current_max_step
+    #         row, col = self.dataset.edge_index
+    #         edge_mask = valid_node_mask[row] & valid_node_mask[col]
+    #         snapshot_data = copy.copy(self.dataset)
+    #         snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
+    #         snapshot_data = snapshot_data.to(self.device)
+
+    #         if self.config.train.model == 'hogrl':
+    #             order = self.config.model.get('num_orders', 3)
+    #             snapshot_data.adjs = self._precompute_high_order_graphs(
+    #                 snapshot_data.edge_index, self.dataset.num_nodes, order=order
+    #             )
+
+    #         out_res = self.model(snapshot_data)
+    #         if isinstance(out_res, tuple): outputs = out_res[0] 
+    #         else: outputs = out_res
+    #         outputs = outputs.reshape((self.dataset.x.shape[0]))
+    #         probs = torch.sigmoid(outputs).detach().cpu().numpy()
+    #         labels_all = self.dataset.y.detach().cpu().numpy()
+
+    #         # 回测历史任务
+    #         for t_id in range(current_task_id + 1):
+    #             if t_id not in self.task_valid_indices_map:
+    #                 # 缺失数据填 0
+    #                 for k in row_metrics: row_metrics[k].append(0.0)
+    #                 continue
+                
+    #             valid_idx = self.task_valid_indices_map[t_id]
+    #             t_preds = probs[valid_idx]
+    #             t_labels = labels_all[valid_idx]
+                
+    #             # 计算指标
+    #             res = self.compute_metrics(t_preds, t_labels)
+                
+    #             # 存入列表
+    #             for k in row_metrics:
+    #                 row_metrics[k].append(res[k])
+                
+    #             if t_id == current_task_id:
+    #                 current_task_metrics = res
+
+    #     # 计算系统级平均指标 (Average over all seen tasks)
+    #     avg_metrics = {k: np.mean(v) for k, v in row_metrics.items()}
+        
+    #     # 打印 (仅打印指标，不打印 Task Time)
+    #     print(f"*** CL Metrics @ Task {current_task_id+1} ***")
+    #     print(f"  [Binary Metrics (Fraud Class)]")
+    #     print(f"  > Avg F1:           {avg_metrics['f1']:.4f}")
+    #     print(f"  > Avg Precision:    {avg_metrics['precision']:.4f}")
+    #     print(f"  > Avg Recall:       {avg_metrics['recall']:.4f}")
+        
+    #     print(f"  [Macro / Balanced Metrics]")
+    #     print(f"  > Avg Macro F1:     {avg_metrics['macro_f1']:.4f}")
+    #     print(f"  > Avg Macro Recall: {avg_metrics['macro_recall']:.4f}")
+    #     print(f"  > Avg G-Mean:       {avg_metrics['g_mean']:.4f}")
+        
+    #     print(f"  [Ranking Metrics]")
+    #     print(f"  > Avg AUC-ROC:      {avg_metrics['auc_roc']:.4f}")
+    #     print(f"  > Avg AUC-PR:       {avg_metrics['auc_pr']:.4f}")
+        
+    #     print(f"  [Financial Cost]")
+    #     print(f"  > Avg Total Cost:   {avg_metrics['total_cost']:.2f}")
+    #     print(f"  > Avg Avg Cost:     {avg_metrics['avg_cost']:.4f}")
+        
+    #     # Tensorboard
+    #     for k, v in avg_metrics.items():
+    #         self.tensorboard.add_scalar(f"CL/Avg_{k}", v, current_task_id + 1)
+
+    #     # 返回结果 (展平字典以便存 CSV)
+    #     result_entry = {
+    #         "task_id": current_task_id + 1,
+    #         "time_cost": task_duration, # 仅保存，不打印
+    #         # 添加所有 Avg 指标
+    #         **{f"avg_{k}": v for k, v in avg_metrics.items()},
+    #         # 添加当前任务的指标
+    #         # **{f"curr_{k}": v for k, v in current_task_metrics.items()}
+    #     }
+    #     return result_entry
     def evaluate_cl_metrics(self, current_task_id, task_duration):
         print(f"\n--- [CL Evaluation] Evaluating on all seen tasks (0 to {current_task_id}) ---")
         self.model.eval()
         
-        # 初始化记录列表 (对应 compute_metrics 返回的 key)
+        # 1. 初始化临时列表，用于计算当前时刻的平均值
+        # 你真正关心的核心指标：F1 (综合), Recall (抓坏人能力), AUC-ROC (模型鲁棒性)
         row_metrics = {
-            "precision": [], "recall": [], "f1": [], 
-            "macro_recall": [], "macro_f1": [], 
-            "g_mean": [], "auc_roc": [], "auc_pr": [], 
-            "total_cost": [], "avg_cost": []
+            "f1": [], 
+            "recall": [], 
+            "precision": [],
+            "auc_roc": [], 
+            "avg_cost": [] 
         }
 
-        with torch.no_grad():
-            # Snapshot 构建
-            current_max_step = self.task_schedule[current_task_id][-1]
-            valid_node_mask = self.dataset.timesteps <= current_max_step
+        # === 核心循环：逐个回顾历史任务 (Iterative Task-wise Evaluation) ===
+        # 这种方式显存占用极小，绝对不会 OOM
+        for t_id in range(current_task_id + 1):
+            
+            # A. 检查是否有验证集数据
+            if t_id not in self.task_valid_indices_map:
+                for k in row_metrics: row_metrics[k].append(0.0)
+                continue
+
+            # B. 构建【单任务】轻量级 Snapshot
+            # 只加载 Task t_id 的数据，模拟“回顾某一次具体的考试”
+            task_start = self.task_schedule[t_id][0]
+            task_end = self.task_schedule[t_id][-1]
+            
+            # 严格限制在当前测试任务的时间窗口内
+            eval_mask = (self.dataset.timesteps >= task_start) & (self.dataset.timesteps <= task_end)
+            
+            # 构建子图：只保留两端都在窗口内的边
             row, col = self.dataset.edge_index
-            edge_mask = valid_node_mask[row] & valid_node_mask[col]
+            edge_mask = eval_mask[row] & eval_mask[col]
+            
+            # 复制并搬运到 GPU
             snapshot_data = copy.copy(self.dataset)
             snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
+            snapshot_data = snapshot_data.to(self.device) 
 
-            if self.config.train.model == 'hogrl':
-                order = self.config.model.get('num_orders', 3)
-                snapshot_data.adjs = self._precompute_high_order_graphs(
-                    snapshot_data.edge_index, self.dataset.num_nodes, order=order
-                )
-
-            out_res = self.model(snapshot_data)
-            if isinstance(out_res, tuple): outputs = out_res[0] 
-            else: outputs = out_res
-            outputs = outputs.reshape((self.dataset.x.shape[0]))
-            probs = torch.sigmoid(outputs).detach().cpu().numpy()
-            labels_all = self.dataset.y.detach().cpu().numpy()
-
-            # 回测历史任务
-            for t_id in range(current_task_id + 1):
-                if t_id not in self.task_valid_indices_map:
-                    # 缺失数据填 0
-                    for k in row_metrics: row_metrics[k].append(0.0)
-                    continue
+            # C. 推理 (No Grad)
+            with torch.no_grad():
+                # HOGRL 特殊处理 (如果用了的话)
+                if self.config.train.model == 'hogrl':
+                    order = self.config.model.get('num_orders', 3)
+                    snapshot_data.adjs = self._precompute_high_order_graphs(
+                        snapshot_data.edge_index, self.dataset.num_nodes, order=order
+                    )
                 
+                # 模型前向传播
+                out_res = self.model(snapshot_data)
+                if isinstance(out_res, tuple): outputs = out_res[0] 
+                else: outputs = out_res
+                
+                # Reshape & Sigmoid
+                outputs = outputs.reshape((self.dataset.x.shape[0]))
+                probs = torch.sigmoid(outputs).detach().cpu().numpy()
+                
+                # 获取标签 (Dataset 在 CPU 上，直接转 numpy)
+                labels_all = self.dataset.y.numpy()
+
+                # D. 只取该任务验证集的部分进行打分
                 valid_idx = self.task_valid_indices_map[t_id]
                 t_preds = probs[valid_idx]
                 t_labels = labels_all[valid_idx]
                 
-                # 计算指标
-                res = self.compute_metrics(t_preds, t_labels)
+                # E. 计算指标 (阈值设为 0.5 以适应不平衡数据)
+                res = self.compute_metrics(t_preds, t_labels, threshold=0.5)
                 
-                # 存入列表
+                # F. 【关键】填入结果矩阵 (用于论文画图)
+                # self.f1_matrix 需要在 __init__ 里初始化: self.f1_matrix = np.zeros((10, 10))
+                # R_{i, j}: 训练完 Task i 后，在 Task j 上的表现
+                if hasattr(self, 'f1_matrix'):
+                    self.f1_matrix[current_task_id, t_id] = res['f1']
+                
+                # 记录以便算平均
                 for k in row_metrics:
-                    row_metrics[k].append(res[k])
-                
-                if t_id == current_task_id:
-                    current_task_metrics = res
+                    if k in res:
+                        row_metrics[k].append(res[k])
 
-        # 计算系统级平均指标 (Average over all seen tasks)
+            # G. 【关键】清理显存 (防止累积导致 OOM)
+            del snapshot_data, out_res, outputs
+            torch.cuda.empty_cache()
+
+        # === 循环结束，统计汇总 ===
+        # 在计算 metrics 之前
+        num_pos = t_labels.sum()
+        if num_pos == 0:
+            print(f"  [Warning] Task {t_id} has NO fraud samples in validation set!")
+            
+        # 计算平均指标 (Average over all seen tasks)
         avg_metrics = {k: np.mean(v) for k, v in row_metrics.items()}
         
-        # 打印 (仅打印指标，不打印 Task Time)
+        # 打印日志 (让你实时看到训练情况)
         print(f"*** CL Metrics @ Task {current_task_id+1} ***")
-        print(f"  [Binary Metrics (Fraud Class)]")
-        print(f"  > Avg F1:           {avg_metrics['f1']:.4f}")
-        print(f"  > Avg Precision:    {avg_metrics['precision']:.4f}")
-        print(f"  > Avg Recall:       {avg_metrics['recall']:.4f}")
+        print(f"  > Avg F1:      {avg_metrics['f1']:.4f}")
+        print(f"  > Avg Recall:  {avg_metrics['recall']:.4f}")
+        print(f"  > Avg AUC-ROC: {avg_metrics['auc_roc']:.4f}")
         
-        print(f"  [Macro / Balanced Metrics]")
-        print(f"  > Avg Macro F1:     {avg_metrics['macro_f1']:.4f}")
-        print(f"  > Avg Macro Recall: {avg_metrics['macro_recall']:.4f}")
-        print(f"  > Avg G-Mean:       {avg_metrics['g_mean']:.4f}")
+        # 如果矩阵存在，打印当前这一行 (展示遗忘过程)
+        if hasattr(self, 'f1_matrix'):
+            current_row = self.f1_matrix[current_task_id, :current_task_id+1]
+            print(f"  > Matrix Row:  {np.round(current_row, 4)}")
         
-        print(f"  [Ranking Metrics]")
-        print(f"  > Avg AUC-ROC:      {avg_metrics['auc_roc']:.4f}")
-        print(f"  > Avg AUC-PR:       {avg_metrics['auc_pr']:.4f}")
-        
-        print(f"  [Financial Cost]")
-        print(f"  > Avg Total Cost:   {avg_metrics['total_cost']:.2f}")
-        print(f"  > Avg Avg Cost:     {avg_metrics['avg_cost']:.4f}")
-        
-        # Tensorboard
+        # Tensorboard 记录
         for k, v in avg_metrics.items():
             self.tensorboard.add_scalar(f"CL/Avg_{k}", v, current_task_id + 1)
 
-        # 返回结果 (展平字典以便存 CSV)
+        # 返回结果 (用于保存 CSV)
         result_entry = {
             "task_id": current_task_id + 1,
-            "time_cost": task_duration, # 仅保存，不打印
-            # 添加所有 Avg 指标
-            **{f"avg_{k}": v for k, v in avg_metrics.items()},
-            # 添加当前任务的指标
-            # **{f"curr_{k}": v for k, v in current_task_metrics.items()}
+            "time_cost": task_duration,
+            **{f"avg_{k}": v for k, v in avg_metrics.items()}
         }
         return result_entry
 
@@ -445,7 +550,7 @@ class Trainer:
             self.task_valid_indices_map[task_id] = task_valid_idx.cpu().numpy()
             
             # 1. 获取当前任务的训练标签
-            y_curr = self.dataset.y[task_train_idx] # 只看当前任务的训练集
+            y_curr = self.dataset.y[task_train_idx.cpu()] # 只看当前任务的训练集
 
             # 2. 计算比例
             num_pos = (y_curr == 1).sum().item()
@@ -476,13 +581,27 @@ class Trainer:
                 gamma=2.0  # gamma 通常设为 2.0，你也可以尝试 1.5 或 3.0
             ).to(self.device)
 
-            # [SNAPSHOT 构建]
-            current_max_step = time_steps[-1]
-            valid_node_mask = self.dataset.timesteps <= current_max_step
+
+            # [SNAPSHOT 构建 - 修正增量版]
+            # 1. 获取当前任务的时间窗口
+            task_start_t = time_steps[0]
+            task_end_t = time_steps[-1]
+            # 2. 改为 ">= & <="，只取当前任务，切断历史
+            valid_node_mask = (self.dataset.timesteps >= task_start_t) & (self.dataset.timesteps <= task_end_t)
+            # 3. 过滤边 (只保留两端都在当前任务内的边)
             row, col = self.dataset.edge_index
             edge_mask = valid_node_mask[row] & valid_node_mask[col]
+            # 4. 构建 Snapshot
             snapshot_data = copy.copy(self.dataset)
             snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
+            # 5. 将构建好的 Snapshot 搬运到 GPU
+            snapshot_data = snapshot_data.to(self.device)
+            print(f"📉 [Naive] Snapshot 节点数: {valid_node_mask.sum().item()} (仅当前任务)")
+
+
+            is_ewc_mode = self.ewc_lambda > 0.0
+            is_lwf_mode = self.lwf_alpha > 0.0
+            is_replay_mode = self.replay_buffer.buffer_size_per_class > 0
 
             if self.config.train.model == 'hogrl':
                 print(f">>> [HOGRL] Pre-computing high-order graphs for Task {task_id+1} (Snapshot only)...")
@@ -491,10 +610,6 @@ class Trainer:
                 snapshot_data.adjs = self._precompute_high_order_graphs(
                     snapshot_data.edge_index, self.dataset.num_nodes, order=order
                 )
-
-            is_ewc_mode = self.ewc_lambda > 0.0
-            is_lwf_mode = self.lwf_alpha > 0.0
-            is_replay_mode = self.replay_buffer.buffer_size_per_class > 0
             
             # [ConsisGAD] LGA Pre-training
             if self.config.train.model == 'consisgad':
@@ -560,7 +675,7 @@ class Trainer:
                 outputs = outputs.reshape((self.dataset.x.shape[0]))
                 
                 outputs = outputs.reshape((self.dataset.x.shape[0]))
-                task_y = self.dataset.y[current_train_idx].float().reshape(-1, 1)
+                task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
                 
                 if self.config.train.model == 'gat_cobo':
                     sw = torch.ones_like(task_y); sw[task_y==1] = 10.0
