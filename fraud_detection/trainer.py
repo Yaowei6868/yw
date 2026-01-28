@@ -292,21 +292,27 @@ class Trainer:
                torch.tensor(task_valid_idx, dtype=torch.long).to(self.device)
 
     def _precompute_high_order_graphs(self, edge_index, num_nodes, order=3):
-        print(f"Pre-computing high-order graphs up to order {order}...")
+        print(f"Pre-computing HOGRL graphs up to order {order} (Force COO)...")
         device = self.device
-        val = torch.ones(edge_index.size(1), dtype=torch.double)
-        adj_coo = torch.sparse_coo_tensor(edge_index.cpu(), val, (num_nodes, num_nodes)).coalesce()
-        adj = adj_coo.to_sparse_csr().to(device)
-        adjs = [adj] 
-        current_adj = adj
+        from torch_geometric.utils import add_self_loops
+        edge_index_self, _ = add_self_loops(edge_index, num_nodes=num_nodes)
+        row, col = edge_index_self
+        deg = torch.zeros(num_nodes, device=device)
+        deg.scatter_add_(0, row, torch.ones(row.size(0), device=device))
+        deg_inv_sqrt = deg.pow(-0.5)
+        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+        values = deg_inv_sqrt[row] * deg_inv_sqrt[col]
+        adj = torch.sparse_coo_tensor(edge_index_self, values, (num_nodes, num_nodes)).coalesce()
+        adjs = [] 
+        current_power = adj
+        a_powers = [current_power]
         for k in range(2, order + 1):
-            try:
-                current_adj = torch.matmul(current_adj, adj)
-                adjs.append(current_adj)
-                print(f"  - Order {k} graph computed.")
-            except Exception as e:
-                print(f"Error computing order {k} graph: {e}"); break
-        return adjs
+            next_power = torch.sparse.mm(current_power, adj)
+            next_power = next_power.coalesce()
+            a_powers.append(next_power)
+            current_power = next_power
+            print(f"  - A^{k} computed (COO).")
+        return a_powers
 
     def _get_bsl_augmentation(self, z_unlabeled, z_n, z_a, model):
         zu_na, zu_aa, zu_nn = model.get_sub_features(z_unlabeled) 

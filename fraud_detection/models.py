@@ -360,43 +360,93 @@ class HOGRL(nn.Module):
         self.dropout = config.dropout
         self.num_orders = config.get('num_orders', 3)
 
-        self.encoders = nn.ModuleList([
+        # --- 1. Experts for High-order Graphs (Eq. 4) ---
+        # 每一阶都有独立的编码器
+        self.order_encoders = nn.ModuleList([
             nn.Linear(self.input_dim, self.hidden_dim) 
             for _ in range(self.num_orders)
         ])
-        self.attn_vec = nn.Linear(self.hidden_dim, 1)
+
+        # --- 2. Gating Network (Eq. 5-6) ---
+        # 论文指出每个 expert (order) 都有自己的权重 w_l [cite: 186]
+        # 使用 ModuleList 确保每一阶参数独立
+        self.gating_layers = nn.ModuleList([
+            nn.Linear(self.hidden_dim, 1)
+            for _ in range(self.num_orders)
+        ])
+
+        # --- 3. Original Graph Branch (Eq. 8-9) ---
+        # 论文要求保留原始图的 embedding 以补充多跳依赖 [cite: 203]
+        # 这里使用一个简单的 GCN 层作为原始图分支的实现
+        self.original_encoder = nn.Linear(self.input_dim, self.hidden_dim)
+
+        # --- 4. Classifier (Eq. 12) ---
+        # 图 2(d) 显示使用 Concatenated Embedding [cite: 103]
+        # 输入维度 = 高阶特征 (hidden) + 原始特征 (hidden)
         self.classifier = nn.Sequential(
-            nn.Linear(self.hidden_dim, self.hidden_dim),
+            nn.Linear(self.hidden_dim * 2, self.hidden_dim),
             nn.ReLU(),
             nn.Dropout(self.dropout),
             nn.Linear(self.hidden_dim, self.output_dim)
         )
+        
+        # 论文 Eq. 10 提到的超参数 gamma，虽然拼接方案可能不需要，但为了灵活性可以保留
+        self.gamma = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, data):
         x = data.x
+        # 必需：预计算的高阶邻接矩阵列表 [S^1, S^2, ..., S^L]
+        # 论文中的 graph construction 步骤 [cite: 164-168]
         if hasattr(data, 'adjs'):
             adj_list = data.adjs
         else:
+            # Fallback: 如果没有预计算，这种回退仅用于调试，实际效果会很差
+            # 实际上 HOGRL 强依赖 S^l = A^l - A^{l-1} + I
             indices = data.edge_index
             values = torch.ones(indices.size(1)).to(x.device)
             adj = torch.sparse_coo_tensor(indices, values, (x.size(0), x.size(0))).to_sparse_csr()
             adj_list = [adj] * self.num_orders
-
-        embeddings = []
+        # === Step 1: High-order Representation Learning ===
+        expert_outputs = []
         for k in range(self.num_orders):
-            h = self.encoders[k](x)
-            h = F.dropout(h, p=self.dropout, training=self.training)
+            # 线性变换: X * W^l [cite: 175]
+            h = self.order_encoders[k](x)
+            h = F.dropout(h, p=self.dropout, training=self.training)          
+            # 聚合: S^l * h
             if k < len(adj_list):
-                adj = adj_list[k]
-                h = adj @ h 
+                h = adj_list[k] @ h  
             h = F.relu(h)
-            embeddings.append(h)
-            
-        stack_emb = torch.stack(embeddings, dim=1)
-        attn_scores = torch.tanh(self.attn_vec(stack_emb))
-        attn_weights = F.softmax(attn_scores, dim=1)
-        final_emb = torch.sum(stack_emb * attn_weights, dim=1)
-        return self.classifier(final_emb)
+            expert_outputs.append(h)        
+        # === Step 2: MoE Attention (Mixture-of-Experts) ===
+        # 计算每个 Expert 的 Attention score 
+        attn_scores = []
+        for k in range(self.num_orders):
+            # f_l(h) = w_l * h + b_l
+            score = self.gating_layers[k](expert_outputs[k]) # [N, 1]
+            attn_scores.append(score)    
+        # 拼接所有阶的分数: [N, L]
+        attn_scores = torch.cat(attn_scores, dim=1)
+        # Softmax 归一化 
+        attn_weights = F.softmax(attn_scores, dim=1) # [N, L]
+        # 加权求和得到高阶特征 h' [cite: 189]
+        h_high_order = torch.zeros_like(expert_outputs[0])
+        for k in range(self.num_orders):
+            # 广播权重: [N, 1] * [N, hidden]
+            h_high_order += attn_weights[:, k:k+1] * expert_outputs[k]
+        # === Step 3: Original Graph Representation ===
+        # 计算基于原始图的特征 h_v [cite: 194]
+        # 通常使用 1 阶邻接矩阵 (adj_list[0] 或者是原始 A)
+        h_original = self.original_encoder(x)
+        h_original = F.dropout(h_original, p=self.dropout, training=self.training)
+        # 使用原始邻接矩阵聚合 (通常就是 adj_list[0] 对应的 A^1，或者你需要单独传 A)
+        # 这里假设 adj_list[0] 近似原始图结构
+        if len(adj_list) > 0:
+             h_original = adj_list[0] @ h_original
+        h_original = F.relu(h_original)
+        # === Step 4: Fusion & Prediction ===
+        # 拼接 (Concatenation) [cite: 139]
+        z_v = torch.cat([h_original, self.gamma * h_high_order], dim=1)
+        return self.classifier(z_v)
 
 # --- CGNN ---
 class CGNNLayer(MessagePassing):

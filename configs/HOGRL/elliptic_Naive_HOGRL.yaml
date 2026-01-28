@@ -19,7 +19,7 @@ train:
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/hogrl/
+  save_dir: weights/hogrl/elliptic_Naive_HOGRL
   
   num_epochs_per_task: 100
   task_schedule: 
