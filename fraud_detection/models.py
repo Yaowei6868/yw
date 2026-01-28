@@ -591,7 +591,6 @@ class GraphSMOTE(nn.Module):
         z = F.dropout(z, p=self.dropout, training=self.training)
         out = self.classifier(z, edge_index)
         return out
-
 class DQNAgent(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(DQNAgent, self).__init__()

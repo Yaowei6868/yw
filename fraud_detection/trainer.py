@@ -233,20 +233,46 @@ class Trainer:
         mean_log_prob_pos = (mask * log_prob).sum(1) / (mask.sum(1) + 1e-7)
         return -mean_log_prob_pos.mean()
 
-    def _update_ewc_metrics(self, task_train_idx: torch.Tensor):
-        if self.ewc_lambda <= 0.0: return
+    def _update_ewc_metrics(self, task_train_idx: torch.Tensor, dataset):
+        """
+        计算 EWC 的 Fisher 信息矩阵 (修复设备不匹配问题)
+        """
+        if self.ewc_lambda <= 0.0: return     
+        print("   [EWC] Updating Fisher Matrix...")
         self.model.eval() 
-        self.optimizer.zero_grad()
-        out_res = self.model(self.dataset)
-        outputs = out_res[0] if isinstance(out_res, tuple) else out_res
-        outputs = outputs.reshape((-1,))
-        task_y = self.dataset.y[task_train_idx].double().reshape(-1, 1)
-        loss = self.criterion(outputs[task_train_idx].double().reshape(-1, 1), task_y)
+        self.optimizer.zero_grad()      
+        # 1. 前向传播 (在 GPU 上)
+        # HOGRL 兼容处理
+        if self.config.train.model == 'hogrl' and not hasattr(dataset, 'adjs'):
+             order = self.config.model.get('num_orders', 3)
+             dataset.adjs = self._precompute_high_order_graphs(
+                dataset.edge_index, self.dataset.num_nodes, order=order
+             )
+        out_res = self.model(dataset)     
+        if isinstance(out_res, tuple): 
+            outputs = out_res[0] 
+        else: 
+            outputs = out_res           
+        outputs = outputs.reshape((-1,))      
+        # 2. 准备标签 (关键修复)
+        # self.dataset.y 通常在 CPU，而 task_train_idx 在 GPU
+        # 必须先将索引转回 CPU 才能去取 CPU 上的标签
+        idx_cpu = task_train_idx.cpu()
+        task_y = self.dataset.y[idx_cpu].float().to(self.device).reshape(-1, 1)    
+        # 3. 准备预测值
+        # outputs 已经在 GPU 上，task_train_idx 也在 GPU 上，直接索引即可
+        pred = outputs[task_train_idx].reshape(-1, 1)
+        # 4. 计算梯度并累积 Fisher
+        loss = self.criterion(pred, task_y)
         loss.backward() 
         for name, param in self.model.named_parameters():
             if param.grad is not None:
-                if name not in self.ewc_fisher: self.ewc_fisher[name] = torch.zeros_like(param.data).to(param.device)
+                if name not in self.ewc_fisher: 
+                    self.ewc_fisher[name] = torch.zeros_like(param.data).to(param.device)
+                
+                # Fisher = gradients^2
                 self.ewc_fisher[name].data += param.grad.data.pow(2)
+                # 备份参数用于后续正则化计算
                 self.ewc_params[name] = param.data.clone()
     
     def _get_task_indices(self, time_steps: list):
@@ -320,124 +346,27 @@ class Trainer:
     # -------------------------------------------------------------
     # 核心评估逻辑：计算遗忘度和平均性能
     # -------------------------------------------------------------
-    # def evaluate_cl_metrics(self, current_task_id, task_duration):
-    #     print(f"\n--- [CL Evaluation] Evaluating on all seen tasks (0 to {current_task_id}) ---")
-    #     self.model.eval()
-        
-    #     # 初始化记录列表 (对应 compute_metrics 返回的 key)
-    #     row_metrics = {
-    #         "precision": [], "recall": [], "f1": [], 
-    #         "macro_recall": [], "macro_f1": [], 
-    #         "g_mean": [], "auc_roc": [], "auc_pr": [], 
-    #         "total_cost": [], "avg_cost": []
-    #     }
-
-    #     with torch.no_grad():
-    #         # Snapshot 构建
-    #         current_max_step = self.task_schedule[current_task_id][-1]
-    #         valid_node_mask = self.dataset.timesteps <= current_max_step
-    #         row, col = self.dataset.edge_index
-    #         edge_mask = valid_node_mask[row] & valid_node_mask[col]
-    #         snapshot_data = copy.copy(self.dataset)
-    #         snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
-    #         snapshot_data = snapshot_data.to(self.device)
-
-    #         if self.config.train.model == 'hogrl':
-    #             order = self.config.model.get('num_orders', 3)
-    #             snapshot_data.adjs = self._precompute_high_order_graphs(
-    #                 snapshot_data.edge_index, self.dataset.num_nodes, order=order
-    #             )
-
-    #         out_res = self.model(snapshot_data)
-    #         if isinstance(out_res, tuple): outputs = out_res[0] 
-    #         else: outputs = out_res
-    #         outputs = outputs.reshape((self.dataset.x.shape[0]))
-    #         probs = torch.sigmoid(outputs).detach().cpu().numpy()
-    #         labels_all = self.dataset.y.detach().cpu().numpy()
-
-    #         # 回测历史任务
-    #         for t_id in range(current_task_id + 1):
-    #             if t_id not in self.task_valid_indices_map:
-    #                 # 缺失数据填 0
-    #                 for k in row_metrics: row_metrics[k].append(0.0)
-    #                 continue
-                
-    #             valid_idx = self.task_valid_indices_map[t_id]
-    #             t_preds = probs[valid_idx]
-    #             t_labels = labels_all[valid_idx]
-                
-    #             # 计算指标
-    #             res = self.compute_metrics(t_preds, t_labels)
-                
-    #             # 存入列表
-    #             for k in row_metrics:
-    #                 row_metrics[k].append(res[k])
-                
-    #             if t_id == current_task_id:
-    #                 current_task_metrics = res
-
-    #     # 计算系统级平均指标 (Average over all seen tasks)
-    #     avg_metrics = {k: np.mean(v) for k, v in row_metrics.items()}
-        
-    #     # 打印 (仅打印指标，不打印 Task Time)
-    #     print(f"*** CL Metrics @ Task {current_task_id+1} ***")
-    #     print(f"  [Binary Metrics (Fraud Class)]")
-    #     print(f"  > Avg F1:           {avg_metrics['f1']:.4f}")
-    #     print(f"  > Avg Precision:    {avg_metrics['precision']:.4f}")
-    #     print(f"  > Avg Recall:       {avg_metrics['recall']:.4f}")
-        
-    #     print(f"  [Macro / Balanced Metrics]")
-    #     print(f"  > Avg Macro F1:     {avg_metrics['macro_f1']:.4f}")
-    #     print(f"  > Avg Macro Recall: {avg_metrics['macro_recall']:.4f}")
-    #     print(f"  > Avg G-Mean:       {avg_metrics['g_mean']:.4f}")
-        
-    #     print(f"  [Ranking Metrics]")
-    #     print(f"  > Avg AUC-ROC:      {avg_metrics['auc_roc']:.4f}")
-    #     print(f"  > Avg AUC-PR:       {avg_metrics['auc_pr']:.4f}")
-        
-    #     print(f"  [Financial Cost]")
-    #     print(f"  > Avg Total Cost:   {avg_metrics['total_cost']:.2f}")
-    #     print(f"  > Avg Avg Cost:     {avg_metrics['avg_cost']:.4f}")
-        
-    #     # Tensorboard
-    #     for k, v in avg_metrics.items():
-    #         self.tensorboard.add_scalar(f"CL/Avg_{k}", v, current_task_id + 1)
-
-    #     # 返回结果 (展平字典以便存 CSV)
-    #     result_entry = {
-    #         "task_id": current_task_id + 1,
-    #         "time_cost": task_duration, # 仅保存，不打印
-    #         # 添加所有 Avg 指标
-    #         **{f"avg_{k}": v for k, v in avg_metrics.items()},
-    #         # 添加当前任务的指标
-    #         # **{f"curr_{k}": v for k, v in current_task_metrics.items()}
-    #     }
-    #     return result_entry
     def evaluate_cl_metrics(self, current_task_id, task_duration):
         print(f"\n--- [CL Evaluation] Evaluating on all seen tasks (0 to {current_task_id}) ---")
         self.model.eval()
         
-        # 1. 初始化临时列表，用于计算当前时刻的平均值
-        # 你真正关心的核心指标：F1 (综合), Recall (抓坏人能力), AUC-ROC (模型鲁棒性)
+        # 1. 初始化指标列表
+        # 包含了你要的分类准确性指标: f1, auc_roc, g_mean
         row_metrics = {
-            "f1": [], 
-            "recall": [], 
-            "precision": [],
-            "auc_roc": [], 
+            "f1": [], "recall": [], "precision": [],
+            "auc_roc": [], "auc_pr": [], "g_mean": [], 
             "avg_cost": [] 
         }
 
-        # === 核心循环：逐个回顾历史任务 (Iterative Task-wise Evaluation) ===
-        # 这种方式显存占用极小，绝对不会 OOM
+        # === 核心循环：逐个回顾历史任务 ===
         for t_id in range(current_task_id + 1):
             
-            # A. 检查是否有验证集数据
+            # A. 检查验证集是否存在
             if t_id not in self.task_valid_indices_map:
                 for k in row_metrics: row_metrics[k].append(0.0)
                 continue
 
-            # B. 构建【单任务】轻量级 Snapshot
-            # 只加载 Task t_id 的数据，模拟“回顾某一次具体的考试”
+            # B. 构建 Snapshot (防 OOM)
             task_start = self.task_schedule[t_id][0]
             task_end = self.task_schedule[t_id][-1]
             
@@ -455,7 +384,7 @@ class Trainer:
 
             # C. 推理 (No Grad)
             with torch.no_grad():
-                # HOGRL 特殊处理 (如果用了的话)
+                # HOGRL 特殊处理
                 if self.config.train.model == 'hogrl':
                     order = self.config.model.get('num_orders', 3)
                     snapshot_data.adjs = self._precompute_high_order_graphs(
@@ -467,24 +396,20 @@ class Trainer:
                 if isinstance(out_res, tuple): outputs = out_res[0] 
                 else: outputs = out_res
                 
-                # Reshape & Sigmoid
                 outputs = outputs.reshape((self.dataset.x.shape[0]))
                 probs = torch.sigmoid(outputs).detach().cpu().numpy()
-                
-                # 获取标签 (Dataset 在 CPU 上，直接转 numpy)
                 labels_all = self.dataset.y.numpy()
 
-                # D. 只取该任务验证集的部分进行打分
+                # D. 只取该任务验证集的部分
                 valid_idx = self.task_valid_indices_map[t_id]
                 t_preds = probs[valid_idx]
                 t_labels = labels_all[valid_idx]
                 
-                # E. 计算指标 (阈值设为 0.5 以适应不平衡数据)
+                # E. 计算指标 (使用 0.5 阈值以获得平衡的 F1/G-Mean)
                 res = self.compute_metrics(t_preds, t_labels, threshold=0.5)
                 
-                # F. 【关键】填入结果矩阵 (用于论文画图)
-                # self.f1_matrix 需要在 __init__ 里初始化: self.f1_matrix = np.zeros((10, 10))
-                # R_{i, j}: 训练完 Task i 后，在 Task j 上的表现
+                # F. 填入结果矩阵 (用于后续计算 Forgetting 和 BWT)
+                # self.f1_matrix 在 __init__ 中初始化: self.f1_matrix = np.zeros((10, 10))
                 if hasattr(self, 'f1_matrix'):
                     self.f1_matrix[current_task_id, t_id] = res['f1']
                 
@@ -493,26 +418,45 @@ class Trainer:
                     if k in res:
                         row_metrics[k].append(res[k])
 
-            # G. 【关键】清理显存 (防止累积导致 OOM)
+            # G. 清理显存
             del snapshot_data, out_res, outputs
             torch.cuda.empty_cache()
 
-        # === 循环结束，统计汇总 ===
-        # 在计算 metrics 之前
-        num_pos = t_labels.sum()
-        if num_pos == 0:
-            print(f"  [Warning] Task {t_id} has NO fraud samples in validation set!")
-            
-        # 计算平均指标 (Average over all seen tasks)
+        # === 2. 计算平均指标 (Average Performance) ===
         avg_metrics = {k: np.mean(v) for k, v in row_metrics.items()}
         
-        # 打印日志 (让你实时看到训练情况)
-        print(f"*** CL Metrics @ Task {current_task_id+1} ***")
-        print(f"  > Avg F1:      {avg_metrics['f1']:.4f}")
-        print(f"  > Avg Recall:  {avg_metrics['recall']:.4f}")
-        print(f"  > Avg AUC-ROC: {avg_metrics['auc_roc']:.4f}")
+        # === 3. 计算 记忆能力指标 (Forgetting & BWT) ===
+        avg_forgetting = 0.0
+        avg_bwt = 0.0
         
-        # 如果矩阵存在，打印当前这一行 (展示遗忘过程)
+        # 只有当完成了至少一个旧任务后 (Task 1 以后)，才能计算遗忘和迁移
+        if current_task_id > 0 and hasattr(self, 'f1_matrix'):
+            forgetting_sum = 0.0
+            bwt_sum = 0.0
+            
+            # 遍历所有旧任务 (j < current_task_id)
+            for j in range(current_task_id): 
+                # --- Forgetting (越低越好) ---
+                # 定义: max(历史上该任务最高分) - 当前分
+                # 切片 [:current_task_id, j] 表示任务 j 在之前所有时刻的表现
+                history_best = self.f1_matrix[:current_task_id, j].max()
+                current_score = self.f1_matrix[current_task_id, j]
+                forgetting_sum += (history_best - current_score)
+                
+                # --- Backward Transfer (BWT) (越高越好) ---
+                # 定义: 当前分 - 刚学完该任务时的分 (R_{i,j} - R_{j,j})
+                # BWT > 0 代表学习新任务反而让旧任务变好了 (正迁移)
+                original_score = self.f1_matrix[j, j] # 对角线分数
+                bwt_sum += (current_score - original_score)
+            
+            avg_forgetting = forgetting_sum / current_task_id
+            avg_bwt = bwt_sum / current_task_id
+
+        # === 4. 打印日志 ===
+        print(f"*** CL Metrics @ Task {current_task_id+1} ***")
+        print(f"  [Accuracy]  Avg F1: {avg_metrics['f1']:.4f} | AUC-ROC: {avg_metrics['auc_roc']:.4f} | G-Mean: {avg_metrics['g_mean']:.4f}")
+        print(f"  [Stability] Avg Forgetting (↓): {avg_forgetting:.4f} | Avg BWT (↑): {avg_bwt:.4f}")
+        
         if hasattr(self, 'f1_matrix'):
             current_row = self.f1_matrix[current_task_id, :current_task_id+1]
             print(f"  > Matrix Row:  {np.round(current_row, 4)}")
@@ -520,11 +464,15 @@ class Trainer:
         # Tensorboard 记录
         for k, v in avg_metrics.items():
             self.tensorboard.add_scalar(f"CL/Avg_{k}", v, current_task_id + 1)
+        self.tensorboard.add_scalar("CL/Avg_Forgetting", avg_forgetting, current_task_id + 1)
+        self.tensorboard.add_scalar("CL/Avg_BWT", avg_bwt, current_task_id + 1)
 
-        # 返回结果 (用于保存 CSV)
+        # === 5. 返回结果 (存入 CSV) ===
         result_entry = {
             "task_id": current_task_id + 1,
             "time_cost": task_duration,
+            "avg_forgetting": avg_forgetting,
+            "avg_bwt": avg_bwt,
             **{f"avg_{k}": v for k, v in avg_metrics.items()}
         }
         return result_entry
@@ -638,14 +586,6 @@ class Trainer:
                         prob_adj = self.model.generator(snapshot_data.x, snapshot_data.edge_index)
                         adj_sample = self.model.generator.sample_adj(prob_adj)
                         consis_view_outputs = self.model.classifier(snapshot_data.x, snapshot_data.edge_index, adj_sample)
-
-                # out_res = self.model(snapshot_data)
-                # if isinstance(out_res, tuple):
-                #     if len(out_res) == 2: outputs, proj_features = out_res 
-                #     elif len(out_res) == 3: outputs, z_all, alpha_all = out_res 
-                #     else: outputs = out_res[0]
-                # else:
-                #     outputs = out_res
 
                 # 先初始化所有可能的辅助变量为 None
                 # 这样即使模型没有返回它们，后续的 if 判断也不会报错
@@ -765,8 +705,11 @@ class Trainer:
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
             if is_replay_mode:
-                task_train_labels = self.dataset.y[task_train_idx].cpu().numpy()
-                self.replay_buffer.add_exemplars(task_train_idx.cpu().numpy(), task_train_labels)
+                idx_cpu = task_train_idx.cpu()
+                task_train_labels = self.dataset.y[idx_cpu].numpy() 
+                
+                # 添加到 Buffer (确保存进去的都是 numpy array)
+                self.replay_buffer.add_exemplars(idx_cpu.numpy(), task_train_labels)
 
             task_duration = time.time() - task_start_time
             del task_train_idx, task_valid_idx, snapshot_data 
