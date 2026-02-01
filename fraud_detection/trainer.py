@@ -412,7 +412,7 @@ class Trainer:
                 t_labels = labels_all[valid_idx]
                 
                 # E. 计算指标 (使用 0.5 阈值以获得平衡的 F1/G-Mean)
-                res = self.compute_metrics(t_preds, t_labels, threshold=0.5)
+                res = self.compute_metrics(t_preds, t_labels, threshold=0.6)
                 
                 # F. 填入结果矩阵 (用于后续计算 Forgetting 和 BWT)
                 # self.f1_matrix 在 __init__ 中初始化: self.f1_matrix = np.zeros((10, 10))
