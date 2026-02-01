@@ -21,7 +21,7 @@ train:
   lr: 0.001
   weight_decay: 5e-4
   print_freq: 10
-  save_dir: weights/cgnn/
+  save_dir: weights/cgnn/elliptic_actor_Naive_CGNN
   
   num_epochs_per_task: 25 
   

@@ -18,7 +18,7 @@ train:
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/cgnn/
+  save_dir: weights/cgnn/elliptic_Naive_CGNN
 
   num_epochs_per_task: 50
   task_schedule: 

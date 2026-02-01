@@ -586,40 +586,191 @@ class CGNN(nn.Module):
         return out
 
 # --- GradGNN ---
+# [在 models.py 顶部添加 import]
+from torch.autograd import grad
+class HighPassEncoder(nn.Module):
+    """
+    [Grad] Supervised GCL Encoder (High-pass Filter)
+    Eq. 1: H^(l+1) = sigma(W * (H^l - Mean(H_neigh)))
+    """
+    def __init__(self, in_dim, out_dim):
+        super().__init__()
+        self.lin = nn.Linear(in_dim, out_dim)
+
+    def forward(self, x, edge_index):
+        # 计算邻居均值
+        row, col = edge_index
+        deg = degree(col, x.size(0), dtype=x.dtype)
+        deg_inv = 1. / deg
+        deg_inv[deg_inv == float('inf')] = 0
+        norm = deg_inv[col]
+        
+        # Mean aggregation
+        x_neigh = torch.zeros_like(x)
+        # scatter_add: x_neigh[col] += x[row] * norm
+        # PyG 的 MessagePassing 也可以做，这里手动实现以匹配公式逻辑
+        # 简化实现: 使用 propogation
+        return self.propagate(edge_index, x=x, norm=norm)
+
+    def propagate(self, edge_index, x, norm):
+        row, col = edge_index
+        out = torch.zeros_like(x)
+        # Message: x_j * norm
+        msg = x[row] * norm.view(-1, 1)
+        # Aggregate: sum
+        out.scatter_add_(0, col.unsqueeze(1).expand_as(msg), msg)
+        
+        # High-pass: Self - Neighbor
+        h = x - out
+        return F.relu(self.lin(h))
+class DenoisingNetwork(nn.Module):
+    """
+    [Grad] Denoising Network for Relation Diffusion
+    Input: Noisy Adjacency (k x k), Time embedding
+    Output: Predicted Noise
+    """
+    def __init__(self, group_size, time_dim=32):
+        super().__init__()
+        self.group_size = group_size
+        self.input_dim = group_size * group_size
+        
+        # 时间步编码
+        self.time_mlp = nn.Sequential(
+            nn.Linear(1, time_dim),
+            nn.SiLU(),
+            nn.Linear(time_dim, time_dim),
+        )
+        
+        # 处理邻接矩阵 (Flatten -> MLP -> Reshape)
+        self.mlp = nn.Sequential(
+            nn.Linear(self.input_dim + time_dim, 256),
+            nn.SiLU(),
+            nn.Linear(256, 256),
+            nn.SiLU(),
+            nn.Linear(256, self.input_dim)
+        )
+
+    def forward(self, adj_noisy, t):
+        # adj_noisy: [B, k, k]
+        B = adj_noisy.size(0)
+        adj_flat = adj_noisy.view(B, -1) # [B, k*k]
+        
+        t_emb = self.time_mlp(t.view(-1, 1).float()) # [B, time_dim]
+        
+        h = torch.cat([adj_flat, t_emb], dim=1)
+        noise_pred = self.mlp(h)
+        
+        return noise_pred.view(B, self.group_size, self.group_size)
+class BetaWaveletLayer(nn.Module):
+    """
+    [Grad] Beta Wavelet Filter
+    Strict fix for dimension mismatch in spmm.
+    """
+    def __init__(self, in_dim, out_dim, order=4):
+        super().__init__()
+        self.order = order
+        self.lins = nn.ModuleList([nn.Linear(in_dim, out_dim) for _ in range(order + 1)])
+
+    def forward(self, x, edge_index, num_nodes):
+        edge_index_self, _ = add_self_loops(edge_index, num_nodes=num_nodes)
+        row, col = edge_index_self
+        deg = degree(col, num_nodes, dtype=x.dtype)
+        deg_inv_sqrt = deg.pow(-0.5)
+        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+        norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
+        
+        out = self.lins[0](x)
+        Tx_prev = x
+        
+        # --- 关键修复: 安全的 Sparse MM 函数 ---
+        def spmm(norm_val, idx, mat):
+            # mat: (N, D)
+            # idx: (2, E)
+            # norm_val: (E,)
+            
+            E = idx.size(1)
+            D = mat.size(1)
+            
+            # 1. 计算边上的消息: (E, D)
+            # norm_val.view(-1, 1) -> (E, 1)
+            # mat[idx[0]] -> (E, D)
+            msg = norm_val.view(-1, 1) * mat[idx[0]]
+            
+            # 2. 准备输出容器
+            out_tensor = torch.zeros_like(mat)
+            
+            # 3. 扩展索引以匹配消息形状: (E, 1) -> (E, D)
+            # idx[1] 是目标节点索引
+            index = idx[1].view(-1, 1).expand(E, D)
+            
+            # 4. 聚合
+            return out_tensor.scatter_add_(0, index, msg)
+
+        for i in range(1, self.order + 1):
+            Tx_next = spmm(norm, edge_index_self, Tx_prev)
+            out = out + self.lins[i](Tx_next)
+            Tx_prev = Tx_next
+            
+        return F.relu(out)
 class GradGNN(nn.Module):
+    """
+    [Grad] Full Model Implementation
+    """
     def __init__(self, config):
         super(GradGNN, self).__init__()
         self.config = config
         self.input_dim = config.input_dim
         self.hidden_dim = config.hidden_dim
         self.output_dim = config.output_dim
-        self.dropout = config.dropout
-        self.num_heads = config.get('num_heads', 4)
-
-        self.conv1 = GATv2Conv(self.input_dim, self.hidden_dim, heads=self.num_heads)
-        self.conv2 = GATv2Conv(self.num_heads * self.hidden_dim, self.hidden_dim, heads=self.num_heads, concat=False)
         
-        self.projection_head = nn.Sequential(
+        # 1. Supervised GCL Module
+        self.gcl_encoder = HighPassEncoder(self.input_dim, self.hidden_dim)
+        self.gcl_proj = nn.Sequential(
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.hidden_dim)
         )
+        
+        # 2. Diffusion Module
+        self.group_size = 32 # k in paper
+        self.diff_steps = 100 # T in paper
+        self.denoise_net = DenoisingNetwork(self.group_size)
+        
+        # 3. Multi-Relation Detector (Wavelet)
+        # 原始关系 + 生成关系 (Assumption: 1 generated relation)
+        self.detector_orig = BetaWaveletLayer(self.input_dim, self.hidden_dim)
+        self.detector_aug = BetaWaveletLayer(self.input_dim, self.hidden_dim)
+        
+        # Weighted Fusion (Eq. 15)
+        self.fusion_weight = nn.Parameter(torch.ones(2))
+        
         self.classifier = nn.Linear(self.hidden_dim, self.output_dim)
 
-    def forward(self, data):
+    def forward(self, data, generated_adj=None):
+        # 这里的 forward 主要用于 Detector 的训练
         x, edge_index = data.x, data.edge_index
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-        x = F.dropout(x, p=self.dropout, training=self.training)
         
-        h = self.conv2(x, edge_index)
-        h = F.relu(h)
+        # 1. Original Branch
+        h_orig = self.detector_orig(x, edge_index, x.size(0))
         
-        z = self.projection_head(h)
-        z = F.normalize(z, dim=1)
+        # 2. Augmented Branch
+        if generated_adj is not None:
+            # generated_adj 是稀疏索引 [2, E_new]
+            h_aug = self.detector_aug(x, generated_adj, x.size(0))
+        else:
+            h_aug = torch.zeros_like(h_orig)
+            
+        # 3. Fusion
+        w = F.softmax(self.fusion_weight, dim=0)
+        h_final = w[0] * h_orig + w[1] * h_aug
         
-        out = self.classifier(h)
-        return out, z
+        return self.classifier(h_final), None # 保持接口一致 (out, aux)
+    
+    def forward_gcl(self, data):
+        # 专门用于 GCL 训练的前向传播
+        h = self.gcl_encoder(data.x, data.edge_index)
+        z = self.gcl_proj(h)
+        return z
 
 # --- GraphSMOTE ---
 class GraphSMOTE(nn.Module):

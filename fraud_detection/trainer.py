@@ -20,6 +20,7 @@ import copy
 import time 
 import pandas as pd 
 import gc 
+from torch_geometric.utils import to_dense_adj, subgraph
 
 # 引入所有模型
 from .models import (
@@ -94,6 +95,7 @@ datasets_map = {
 
 
 class Trainer:
+    # 初始化训练器
     def __init__(self, config):
         self.config = config
         self.device = torch.device(config.train.device if torch.cuda.is_available() else "cpu")
@@ -159,6 +161,7 @@ class Trainer:
             valid_mask = (self.dataset.y != -1)
             self.task_indices[t] = torch.where(mask_t & valid_mask)[0]
 
+    # 计算评估指标
     def compute_metrics(self, preds, labels, threshold=0.3):
         pred_labels = (preds > threshold).astype(int)
         
@@ -212,6 +215,7 @@ class Trainer:
             "avg_cost": avg_cost
         }
 
+    # 知识蒸馏损失
     def _distillation_loss(self, student_output, teacher_output):
         prob_s = student_output.squeeze().clamp(min=1e-7, max=1-1e-7)
         prob_t = teacher_output.detach().squeeze().clamp(min=1e-7, max=1-1e-7) 
@@ -219,6 +223,7 @@ class Trainer:
                  (1 - prob_t) * (torch.log(1 - prob_t) - torch.log(1 - prob_s))
         return kl_div.mean()
 
+    # 对比学习损失
     def _sup_contrastive_loss(self, features, labels, temperature=0.07):
         labels = labels.view(-1)
         sim_matrix = torch.matmul(features, features.T) / temperature
@@ -233,6 +238,7 @@ class Trainer:
         mean_log_prob_pos = (mask * log_prob).sum(1) / (mask.sum(1) + 1e-7)
         return -mean_log_prob_pos.mean()
 
+    # EWC: 计算 Fisher 信息矩阵
     def _update_ewc_metrics(self, task_train_idx: torch.Tensor, dataset):
         """
         计算 EWC 的 Fisher 信息矩阵 (修复设备不匹配问题)
@@ -275,6 +281,7 @@ class Trainer:
                 # 备份参数用于后续正则化计算
                 self.ewc_params[name] = param.data.clone()
     
+    # EWC: 获取任务节点索引
     def _get_task_indices(self, time_steps: list):
         start_time = time_steps[0]
         end_time = time_steps[-1]
@@ -291,6 +298,7 @@ class Trainer:
         return torch.tensor(task_train_idx, dtype=torch.long).to(self.device), \
                torch.tensor(task_valid_idx, dtype=torch.long).to(self.device)
 
+    # HOGRL 专用: 预计算高阶邻接矩阵 (COO 格式)
     def _precompute_high_order_graphs(self, edge_index, num_nodes, order=3):
         print(f"Pre-computing HOGRL graphs up to order {order} (Force COO)...")
         device = self.device
@@ -313,7 +321,54 @@ class Trainer:
             current_power = next_power
             print(f"  - A^{k} computed (COO).")
         return a_powers
-
+    
+    # GradGNN: 节点分组采样
+    def _node_group_sampling(self, num_nodes, group_size=32):
+        """
+        [Grad] Algorithm 3: Node Group Sampling
+        """
+        indices = torch.randperm(num_nodes)
+        num_groups = num_nodes // group_size
+        groups = []
+        for i in range(num_groups):
+            groups.append(indices[i*group_size : (i+1)*group_size])
+        return groups, indices # indices 用于后续映射回原图
+    def _grad_gcl_loss(self, z, y, temperature=0.2):
+        """
+        [Grad] Eq. 2: Supervised Contrastive Loss
+        """
+        # 简化版实现，避免过大的内存消耗
+        # 随机采样一部分节点计算 loss
+        batch_size = 1024
+        if z.size(0) > batch_size:
+            idx = torch.randperm(z.size(0))[:batch_size]
+            z = z[idx]
+            y = y[idx]
+            
+        z = F.normalize(z, dim=1)
+        sim = torch.matmul(z, z.T) / temperature
+        exp_sim = torch.exp(sim)
+        
+        # Mask for same class
+        mask = torch.eq(y.view(-1, 1), y.view(-1, 1)).float().to(z.device)
+        # Remove diagonal
+        logits_mask = torch.ones_like(mask) - torch.eye(mask.size(0)).to(z.device)
+        
+        mask = mask * logits_mask
+        exp_sim = exp_sim * logits_mask
+        
+        # Sum of exp(sim) for all negatives/positives
+        denominator = exp_sim.sum(dim=1, keepdim=True)
+        
+        # Log Probability
+        log_prob = sim - torch.log(denominator + 1e-8)
+        
+        # Mean over positive pairs
+        mean_log_prob_pos = (mask * log_prob).sum(1) / (mask.sum(1) + 1e-8)
+        
+        return -mean_log_prob_pos.mean()
+    
+    # BSL: 基于节点分组的对比学习
     def _get_bsl_augmentation(self, z_unlabeled, z_n, z_a, model):
         zu_na, zu_aa, zu_nn = model.get_sub_features(z_unlabeled) 
         zn_na, zn_aa, zn_nn = model.get_sub_features(z_n.unsqueeze(0))
@@ -324,6 +379,7 @@ class Trainer:
         z_as = torch.cat([zu_na, za_aa.expand_as(zu_aa), za_nn.expand_as(zu_nn)], dim=1)
         return z_nw, z_aw, z_ns, z_as
 
+    # ConsisGAD: 预训练生成器和判别器
     def _train_lga_step(self):
         """[ConsisGAD] Pre-training"""
         opt_G = optim.Adam(self.model.generator.parameters(), lr=0.01)
@@ -494,83 +550,49 @@ class Trainer:
         for task_id, time_steps in enumerate(self.task_schedule):
             print(f"\n--- Training on Task {task_id + 1} (Timesteps: {time_steps[0]} to {time_steps[-1]}) ---")
             task_start_time = time.time() 
-
             task_train_idx, task_valid_idx = self._get_task_indices(time_steps)
             if task_train_idx is None:
                 print("Skipping task: No labeled data.")
-                self.recall_matrix.append([]); self.cost_matrix.append([]); self.f1_binary_matrix.append([]); self.precision_matrix.append([])
                 continue
-            
             self.task_valid_indices_map[task_id] = task_valid_idx.cpu().numpy()
             
-            # 1. 获取当前任务的训练标签
-            y_curr = self.dataset.y[task_train_idx.cpu()] # 只看当前任务的训练集
-
-            # 2. 计算比例
+            # --- Dynamic Weight Calculation ---
+            y_curr = self.dataset.y[task_train_idx.cpu()]
             num_pos = (y_curr == 1).sum().item()
             num_neg = (y_curr == 0).sum().item()
-
-            if num_pos > 0:
-                raw_ratio = num_neg / num_pos
-            else:
-                raw_ratio = 1.0
-
-            # 3. 截断 (Clip) - 防止权重过大
-            # 这里的 5.0 是给基线实验设的安全上限，您可以根据需要调整
-            clipped_weight = min(raw_ratio, 10.0) 
-            clipped_weight = max(clipped_weight, 1.0)
-
-            print(f"🔧 Task {task_id+1} 动态权重: {raw_ratio:.2f} -> 截断为 {clipped_weight:.2f}")
-
-            # 4. 重新定义 Loss 函数 (覆盖 __init__ 里的定义)
-            # 注意：这里要用 .double() 还是 .float() 取决于您的模型精度，一般 float 即可
-            # self.criterion = nn.BCEWithLogitsLoss(
-            #     pos_weight=torch.tensor([clipped_weight]).to(self.device)
-            # )
+            raw_ratio = num_neg / num_pos if num_pos > 0 else 1.0
+            clipped_weight = max(min(raw_ratio, 10.0), 1.0)
+            print(f"🔧 Task {task_id+1} Dynamic Weight: {raw_ratio:.2f} -> Clipped: {clipped_weight:.2f}")
             dynamic_alpha = clipped_weight / (1.0 + clipped_weight)
-            print(f"   -> 转换为 Focal Loss Alpha: {dynamic_alpha:.4f}")
+            print(f"   -> Focal Loss Alpha: {dynamic_alpha:.4f}")
+            self.criterion = BinaryFocalLoss(alpha=dynamic_alpha, gamma=2.0).to(self.device)
 
-            self.criterion = BinaryFocalLoss(
-                alpha=dynamic_alpha, 
-                gamma=2.0  # gamma 通常设为 2.0，你也可以尝试 1.5 或 3.0
-            ).to(self.device)
-
-
-            # [SNAPSHOT 构建 - 修正增量版]
-            # 1. 获取当前任务的时间窗口
-            task_start_t = time_steps[0]
-            task_end_t = time_steps[-1]
-            # 2. 改为 ">= & <="，只取当前任务，切断历史
+            # --- Snapshot Construction ---
+            task_start_t, task_end_t = time_steps[0], time_steps[-1]
             valid_node_mask = (self.dataset.timesteps >= task_start_t) & (self.dataset.timesteps <= task_end_t)
-            # 3. 过滤边 (只保留两端都在当前任务内的边)
             row, col = self.dataset.edge_index
             edge_mask = valid_node_mask[row] & valid_node_mask[col]
-            # 4. 构建 Snapshot
             snapshot_data = copy.copy(self.dataset)
             snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
-            # 5. 将构建好的 Snapshot 搬运到 GPU
             snapshot_data = snapshot_data.to(self.device)
-            print(f"📉 [Naive] Snapshot 节点数: {valid_node_mask.sum().item()} (仅当前任务)")
+            print(f"📉 Snapshot Nodes: {valid_node_mask.sum().item()} (Current Task Only)")
 
-
+            # --- Model Specific Pre-computations ---
             is_ewc_mode = self.ewc_lambda > 0.0
             is_lwf_mode = self.lwf_alpha > 0.0
             is_replay_mode = self.replay_buffer.buffer_size_per_class > 0
 
             if self.config.train.model == 'hogrl':
-                print(f">>> [HOGRL] Pre-computing high-order graphs for Task {task_id+1} (Snapshot only)...")
+                print(f">>> [HOGRL] Pre-computing graphs for Task {task_id+1}...")
                 order = self.config.model.get('num_orders', 3)
-                # 关键：传入的是 snapshot_data.edge_index
                 snapshot_data.adjs = self._precompute_high_order_graphs(
                     snapshot_data.edge_index, self.dataset.num_nodes, order=order
                 )
             
-            # [ConsisGAD] LGA Pre-training
             if self.config.train.model == 'consisgad':
-                print(">>> [ConsisGAD] Pre-training LGA Module (on Snapshot)...")
+                print(">>> [ConsisGAD] Pre-training LGA Module...")
                 for lga_ep in range(20): 
                     ld, lg = self._train_lga_step(snapshot_data)
-                    if lga_ep % 10 == 0: print(f"    LGA Ep {lga_ep}: D={ld:.3f} G={lg:.3f}")
 
             # --- Epoch Loop ---
             for epoch in range(1, epochs_per_task + 1):
@@ -581,112 +603,157 @@ class Trainer:
                 replay_idx = self.replay_buffer.get_buffer_indices().to(self.config.train.device)
                 current_train_idx = torch.cat([task_train_idx, replay_idx])
                 
-                if self.config.train.model == 'pmp':
-                    pmp_mask = torch.zeros(self.dataset.num_nodes, dtype=torch.bool, device=self.device)
-                    pmp_mask[current_train_idx] = True
-                    self.dataset.pmp_mask = pmp_mask 
-
-                consis_view_outputs = None
-                if self.config.train.model == 'consisgad':
-                    with torch.no_grad():
-                        prob_adj = self.model.generator(snapshot_data.x, snapshot_data.edge_index)
-                        adj_sample = self.model.generator.sample_adj(prob_adj)
-                        consis_view_outputs = self.model.classifier(snapshot_data.x, snapshot_data.edge_index, adj_sample)
-
-                # 先初始化所有可能的辅助变量为 None
-                # 这样即使模型没有返回它们，后续的 if 判断也不会报错
-                z_all = None
-                alpha_all = None
-                proj_features = None
-
-                # 执行模型前向传播
-                out_res = self.model(snapshot_data)
-                
-                # 安全解包 (根据返回值的数量自动赋值)
-                if isinstance(out_res, tuple):
-                    if len(out_res) == 3:
-                        # BSL 模型通常返回 3 个值: (logits, embeddings, attention_weights)
-                        outputs, z_all, alpha_all = out_res
-                    elif len(out_res) == 2:
-                        # GradGNN 或其他模型可能返回 2 个值: (logits, projected_features)
-                        outputs, proj_features = out_res 
+                # --- GRAD MODEL SPECIAL FLOW ---
+                if self.config.train.model == 'grad':
+                    # A. Train Supervised GCL Encoder (Eq. 2)
+                    z_gcl = self.model.forward_gcl(snapshot_data)
+                    # Compute GCL Loss only on training nodes
+                    gcl_labels = self.dataset.y[current_train_idx.cpu()].to(self.device)
+                    loss_gcl = self._grad_gcl_loss(z_gcl[current_train_idx], gcl_labels)
+                    
+                    # B. Train Diffusion (Algorithm 1)
+                    # Node Group Sampling
+                    groups, perm_idx = self._node_group_sampling(snapshot_data.num_nodes, self.model.group_size)
+                    
+                    # 随机采样 64 个 Group 进行训练
+                    num_sample_groups = 64
+                    if len(groups) > num_sample_groups:
+                        sampled_grp_idx = torch.randperm(len(groups))[:num_sample_groups]
+                        batch_groups = [groups[i] for i in sampled_grp_idx]
                     else:
-                        #以此类推，或者只取第一个
-                        outputs = out_res[0]
-                else:
-                    # 普通模型只返回 logits
-                    outputs = out_res
-                
-                # Reshape logits 确保维度正确
-                outputs = outputs.reshape((self.dataset.x.shape[0]))
-                
-                outputs = outputs.reshape((self.dataset.x.shape[0]))
-                task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
-                
-                if self.config.train.model == 'gat_cobo':
-                    sw = torch.ones_like(task_y); sw[task_y==1] = 10.0
-                    task_loss = F.binary_cross_entropy_with_logits(
-                        outputs[current_train_idx].double().reshape(-1, 1), task_y, weight=sw, pos_weight=self.criterion.pos_weight)
-                else:
-                    task_loss = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
-                
-                grad_loss, bsl_loss, consis_loss, cl_loss = 0.0, 0.0, 0.0, 0.0
-                
-                # [ConsisGAD - NAIVE BASELINE MODE]
-                if self.config.train.model == 'consisgad' and consis_view_outputs is not None:
-                    all_idx = torch.arange(self.dataset.num_nodes, device=self.config.train.device)
-                    is_not_train = ~torch.isin(all_idx, current_train_idx)
-                    is_visible = valid_node_mask
-                    # Naive: 限制只能看当前任务时间段
-                    task_start_t, task_end_t = time_steps[0], time_steps[-1]
-                    is_current_task_nodes = (self.dataset.timesteps >= task_start_t) & \
-                                            (self.dataset.timesteps <= task_end_t)
-                    
-                    unlabeled_mask = is_not_train & is_visible & is_current_task_nodes
+                        batch_groups = groups
 
-                    if unlabeled_mask.sum() > 0:
-                        p_orig = torch.sigmoid(outputs[unlabeled_mask])
-                        p_aug = torch.sigmoid(consis_view_outputs.reshape(-1)[unlabeled_mask])
-                        consis_loss = F.mse_loss(p_orig, p_aug)
-
-                if self.config.train.model == 'grad' and proj_features is not None:
-                    grad_loss = self._sup_contrastive_loss(proj_features[current_train_idx], self.dataset.y[current_train_idx])
-                
-                if self.config.train.model == 'bsl' and z_all is not None:
-                    alpha_train = alpha_all[current_train_idx]
-                    y_train_long = self.dataset.y[current_train_idx].long()
-                    l_attn = torch.mean(
-                        (1 - y_train_long.float()) * F.relu(alpha_train[:, 1] - alpha_train[:, 2] + 0.2) + 
-                        (y_train_long.float()) * F.relu(alpha_train[:, 2] - alpha_train[:, 1] + 0.2)
-                    )
-                    bsl_loss = 0.4 * l_attn 
+                    adj_batch_list = []
+                    for grp_nodes in batch_groups:
+                        # 确保节点索引在 GPU 上以便进行 subgraph 操作
+                        grp_nodes = grp_nodes.to(self.device)
+                        
+                        # 1. 提取子图边 (relabel_nodes=True 会自动把索引映射到 0~31)
+                        sub_edge_index, _ = subgraph(
+                            grp_nodes, 
+                            snapshot_data.edge_index, 
+                            relabel_nodes=True, 
+                            num_nodes=snapshot_data.num_nodes
+                        )
+                        
+                        # 2. 转为 Dense (32x32)
+                        # max_num_nodes 确保维度固定为 group_size
+                        dense_adj = to_dense_adj(sub_edge_index, max_num_nodes=self.model.group_size)[0]
+                        adj_batch_list.append(dense_adj)
                     
-                if is_lwf_mode and task_id > 0: 
-                    self.old_model.eval()
-                    with torch.no_grad():
-                        old_out = self.old_model(snapshot_data) 
-                        if isinstance(old_out, tuple): old_out = old_out[0]
-                    cl_loss += self.lwf_alpha * self._distillation_loss(
-                        torch.sigmoid(outputs[current_train_idx]), torch.sigmoid(old_out.reshape(-1)[current_train_idx]))
+                    # 堆叠为 Batch [B, 32, 32]
+                    adj_batch = torch.stack(adj_batch_list)
+                    
+                    # Sample t
+                    current_batch_size = adj_batch.size(0)
+                    t = torch.randint(0, self.model.diff_steps, (current_batch_size,), device=self.device)
+                    noise = torch.randn_like(adj_batch)
+                    
+                    # Diffusion Forward (Simplified linear schedule)
+                    alpha_cumprod = torch.linspace(0.99, 0.01, self.model.diff_steps).to(self.device)
+                    alpha_t = alpha_cumprod[t].view(-1, 1, 1)
+                    
+                    noisy_adj = torch.sqrt(alpha_t) * adj_batch + torch.sqrt(1 - alpha_t) * noise
+                    noise_pred = self.model.denoise_net(noisy_adj, t)
+                    loss_diff = F.mse_loss(noise_pred, noise)
+                    
+                    # C. Train Detector (Beta Wavelet)
+                    # Note: We skip the slow generation process in training loop and train on identity augmentation or perturbation
+                    # In true implementation, you would generate a new graph here.
+                    out, _ = self.model(snapshot_data, generated_adj=None)
+                    outputs = out.reshape((self.dataset.x.shape[0]))
+                    
+                    task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
+                    loss_det = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
+                    
+                    # Total Loss (Multi-task)
+                    total_loss = loss_det + 0.1 * loss_gcl + 0.1 * loss_diff
+
+                # --- STANDARD FLOW FOR OTHER MODELS ---
+                else:
+                    if self.config.train.model == 'pmp':
+                        pmp_mask = torch.zeros(self.dataset.num_nodes, dtype=torch.bool, device=self.device)
+                        pmp_mask[current_train_idx] = True
+                        self.dataset.pmp_mask = pmp_mask 
+
+                    consis_view_outputs = None
+                    if self.config.train.model == 'consisgad':
+                        with torch.no_grad():
+                            prob_adj = self.model.generator(snapshot_data.x, snapshot_data.edge_index)
+                            adj_sample = self.model.generator.sample_adj(prob_adj)
+                            consis_view_outputs = self.model.classifier(snapshot_data.x, snapshot_data.edge_index, adj_sample)
+
+                    z_all = None; alpha_all = None; proj_features = None
+                    out_res = self.model(snapshot_data)
+                    
+                    if isinstance(out_res, tuple):
+                        if len(out_res) == 3: outputs, z_all, alpha_all = out_res
+                        elif len(out_res) == 2: outputs, proj_features = out_res 
+                        else: outputs = out_res[0]
+                    else:
+                        outputs = out_res
+                    
+                    outputs = outputs.reshape((self.dataset.x.shape[0]))
+                    task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
+                    
+                    if self.config.train.model == 'gat_cobo':
+                        sw = torch.ones_like(task_y); sw[task_y==1] = 10.0
+                        task_loss = F.binary_cross_entropy_with_logits(
+                            outputs[current_train_idx].double().reshape(-1, 1), task_y, weight=sw, pos_weight=self.criterion.pos_weight)
+                    else:
+                        task_loss = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
+                    
+                    grad_loss, bsl_loss, consis_loss, cl_loss = 0.0, 0.0, 0.0, 0.0
+                    
+                    # ConsisGAD Loss
+                    if self.config.train.model == 'consisgad' and consis_view_outputs is not None:
+                        all_idx = torch.arange(self.dataset.num_nodes, device=self.config.train.device)
+                        is_not_train = ~torch.isin(all_idx, current_train_idx)
+                        is_visible = valid_node_mask
+                        is_current_task = (self.dataset.timesteps >= time_steps[0]) & (self.dataset.timesteps <= time_steps[-1])
+                        unlabeled_mask = is_not_train & is_visible & is_current_task
+                        if unlabeled_mask.sum() > 0:
+                            p_orig = torch.sigmoid(outputs[unlabeled_mask])
+                            p_aug = torch.sigmoid(consis_view_outputs.reshape(-1)[unlabeled_mask])
+                            consis_loss = F.mse_loss(p_orig, p_aug)
+
+                    # BSL Loss
+                    if self.config.train.model == 'bsl' and z_all is not None:
+                        alpha_train = alpha_all[current_train_idx]
+                        y_train_long = self.dataset.y[current_train_idx].long()
+                        l_attn = torch.mean(
+                            (1 - y_train_long.float()) * F.relu(alpha_train[:, 1] - alpha_train[:, 2] + 0.2) + 
+                            (y_train_long.float()) * F.relu(alpha_train[:, 2] - alpha_train[:, 1] + 0.2)
+                        )
+                        bsl_loss = 0.4 * l_attn 
+                    
+                    # CL Losses (LwF / EWC)
+                    if is_lwf_mode and task_id > 0: 
+                        self.old_model.eval()
+                        with torch.no_grad():
+                            old_out = self.old_model(snapshot_data) 
+                            if isinstance(old_out, tuple): old_out = old_out[0]
+                        cl_loss += self.lwf_alpha * self._distillation_loss(
+                            torch.sigmoid(outputs[current_train_idx]), torch.sigmoid(old_out.reshape(-1)[current_train_idx]))
+                    
+                    if is_ewc_mode and task_id > 0: 
+                        ewc_term = 0.0
+                        for name, param in self.model.named_parameters():
+                            if name in self.ewc_fisher:
+                                ewc_term += (self.ewc_fisher[name].to(param.device) * (param - self.ewc_params[name].to(param.device)).pow(2)).sum()
+                        cl_loss += self.ewc_lambda * ewc_term
+                    
+                    total_loss = task_loss + cl_loss
+                    if self.config.train.model == 'bsl': total_loss += bsl_loss
+                    if self.config.train.model == 'consisgad': total_loss += 1.0 * consis_loss
                 
-                if is_ewc_mode and task_id > 0: 
-                    ewc_term = 0.0
-                    for name, param in self.model.named_parameters():
-                        if name in self.ewc_fisher:
-                            ewc_term += (self.ewc_fisher[name].to(param.device) * (param - self.ewc_params[name].to(param.device)).pow(2)).sum()
-                    cl_loss += self.ewc_lambda * ewc_term
-                
-                total_loss = task_loss + cl_loss
-                if self.config.train.model == 'grad': total_loss += 0.5 * grad_loss
-                if self.config.train.model == 'bsl': total_loss += bsl_loss
-                if self.config.train.model == 'consisgad': total_loss += 1.0 * consis_loss
-                
+                # --- Backward & Optimize ---
                 total_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 self.optimizer.step()
                 self.scheduler.step(total_loss)
 
-                # [RL Auto-Tuning]
+                # ConsisGAD Auto-Tuning
                 if (self.config.train.model == 'consisgad') and epoch % 5 == 0:
                     self.model.eval()
                     with torch.no_grad():
@@ -696,12 +763,10 @@ class Trainer:
                         val_labels = self.dataset.y[task_valid_idx].cpu().numpy()
                         metrics = self.compute_metrics(val_preds, val_labels)
                     self.model.train()
-                    
                     cw = self.criterion.pos_weight.item()
                     nw = cw
                     if metrics['recall'] < 0.7: nw = min(cw * 1.5, 25.0) 
-                    elif metrics['precision'] < 0.3: nw = max(cw * 0.8, 1.0) # 放宽下限
-                    
+                    elif metrics['precision'] < 0.3: nw = max(cw * 0.8, 1.0)
                     if nw != cw: 
                          self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([nw]).to(self.config.train.device).double())
 
@@ -713,8 +778,6 @@ class Trainer:
             if is_replay_mode:
                 idx_cpu = task_train_idx.cpu()
                 task_train_labels = self.dataset.y[idx_cpu].numpy() 
-                
-                # 添加到 Buffer (确保存进去的都是 numpy array)
                 self.replay_buffer.add_exemplars(idx_cpu.numpy(), task_train_labels)
 
             task_duration = time.time() - task_start_time

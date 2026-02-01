@@ -18,7 +18,7 @@ train:
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/grad/
+  save_dir: weights/grad/elliptic_Naive_Grad
   
   num_epochs_per_task: 100
   task_schedule: 

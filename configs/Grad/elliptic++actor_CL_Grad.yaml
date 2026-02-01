@@ -1,0 +1,51 @@
+# 实验名称
+name: elliptic_actor_CL_Grad
+
+dataset:
+  root: "data/elliptic++actor"
+
+model:
+  # Grad 模型参数
+  input_dim: 166        # 自动覆盖
+  hidden_dim: 128       # 建议 64 或 128
+  output_dim: 1
+  dropout: 0.5
+  num_heads: 4          # GATv2 backbone 的头数
+  
+  # Grad 特有参数 (虽然代码里可能有默认值，但写在这里方便调整)
+  group_size: 32        # [Paper] Node Group Size k=32 [cite: 867]
+  diff_steps: 100       # [Paper] Diffusion Steps T=100 [cite: 867]
+  beta_order: 4         # Beta Wavelet Filter 的阶数 (默认为 4)
+
+train:
+  dataset: elliptic_actor 
+  model: grad           
+  device: cuda
+  
+  # [Paper Hyperparams]
+  lr: 0.001             # 论文指定学习率 1e-3 [cite: 846]
+  weight_decay: 1e-5    # 论文指定权重衰减 1e-5 [cite: 846]
+  
+  print_freq: 10
+  save_dir: weights/grad/elliptic_actor_CL_Grad
+  
+  # 训练轮次
+  # Grad 包含 Diffusion 和 GCL 多个任务，建议适当增加 Epoch 保证收敛
+  num_epochs_per_task: 30 
+  
+  task_schedule:
+    - [0]
+    - [1]
+    - [2]
+    - [3]
+    - [4]
+    - [5]
+    - [6]
+    - [7]
+    - [8]
+    - [9]
+
+  # --- CL 模式 (增量学习) ---
+  ewc_lambda: 100
+  buffer_size_per_class: 1000
+  
