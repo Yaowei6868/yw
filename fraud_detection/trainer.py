@@ -551,30 +551,31 @@ class Trainer:
         return l_d, l_bsl
 
     # ConsisGAD: 预训练生成器和判别器
-    def _train_lga_step(self):
-        """[ConsisGAD] Pre-training"""
-        opt_G = optim.Adam(self.model.generator.parameters(), lr=0.01)
-        opt_D = optim.Adam(self.model.discriminator.parameters(), lr=0.01)
-        x = self.dataset.x
-        edge_index = self.dataset.edge_index
+    def _consisgad_loss_consistency(self, p_orig, p_aug):
+        """
+        L_c (Eq. 3 & Eq. 9 part 1): KL Divergence or MSE between predictions
+        Paper Eq 9 uses CrossEntropy with Pseudo-Label, simplified to MSE/KL here for stability.
+        """
+        # 论文 Eq. 9: - sum y_pseudo * log(p_aug)
+        # 这里我们使用更稳定的 KL 散度 或 MSE
+        # p_orig 是原始预测 (logits), p_aug 是增强后预测 (logits)
         
-        opt_D.zero_grad()
-        score_real = self.model.discriminator(x, edge_index)
-        prob_adj = self.model.generator(x, edge_index)
-        adj_fake = self.model.generator.sample_adj(prob_adj)
-        score_fake = self.model.discriminator(x, edge_index, edge_weight=adj_fake.detach())
-        loss_d = -torch.mean(torch.log(score_real + 1e-8) + torch.log(1 - score_fake + 1e-8))
-        loss_d.backward(); opt_D.step()
+        prob_orig = torch.sigmoid(p_orig)
+        prob_aug = torch.sigmoid(p_aug)
         
-        opt_G.zero_grad()
-        prob_adj = self.model.generator(x, edge_index)
-        adj_fake = self.model.generator.sample_adj(prob_adj)
-        score_fake_g = self.model.discriminator(x, edge_index, edge_weight=adj_fake)
-        l_adv = -torch.mean(torch.log(score_fake_g + 1e-8))
-        l_reg = -F.mse_loss(prob_adj, torch.ones_like(prob_adj))
-        loss_g = l_adv + 0.1 * l_reg
-        loss_g.backward(); opt_G.step()
-        return loss_d.item(), loss_g.item()
+        # 使得增强后的预测尽可能接近原始预测 (的高置信度伪标签)
+        loss = F.mse_loss(prob_aug, prob_orig.detach())
+        return loss
+
+    def _consisgad_loss_diversity(self, h_orig, h_aug):
+        """
+        L_d (Eq. 9 part 2): Distance between representations.
+        We want to MAXIMIZE diversity -> Minimize -Distance
+        """
+        # 使用欧氏距离
+        dist = torch.norm(h_orig.detach() - h_aug, p=2, dim=1).mean()
+        return -dist # 最小化负距离 = 最大化距离
+    
 
     # -------------------------------------------------------------
     # 核心评估逻辑：计算遗忘度和平均性能
@@ -639,7 +640,7 @@ class Trainer:
                 t_labels = labels_all[valid_idx]
                 
                 # E. 计算指标 (使用 0.5 阈值以获得平衡的 F1/G-Mean)
-                res = self.compute_metrics(t_preds, t_labels, threshold=0.1)
+                res = self.compute_metrics(t_preds, t_labels, threshold=0.3)
                 
                 # F. 填入结果矩阵 (用于后续计算 Forgetting 和 BWT)
                 # self.f1_matrix 在 __init__ 中初始化: self.f1_matrix = np.zeros((10, 10))
@@ -714,79 +715,94 @@ class Trainer:
     # 主训练循环
     # -------------------------------------------------------------
     def train(self):
+        # 获取每个任务的 epoch 数 (默认为 100)
         epochs_per_task = self.config.train.get('num_epochs_per_task', 100) 
         global_step = 0
         start_time_total = time.time() 
 
+        # --- 任务循环 (Task Loop) ---
         for task_id, time_steps in enumerate(self.task_schedule):
             print(f"\n--- Training on Task {task_id + 1} (Timesteps: {time_steps[0]} to {time_steps[-1]}) ---")
             task_start_time = time.time() 
+            
+            # 1. 获取当前任务的数据索引
             task_train_idx, task_valid_idx = self._get_task_indices(time_steps)
             if task_train_idx is None:
                 print("Skipping task: No labeled data.")
                 continue
+            
+            # 记录验证集索引用于评估
             self.task_valid_indices_map[task_id] = task_valid_idx.cpu().numpy()
             
-            # --- Dynamic Weight Calculation ---
+            # 2. 动态计算 Loss 权重 (处理类别不平衡)
             y_curr = self.dataset.y[task_train_idx.cpu()]
             num_pos = (y_curr == 1).sum().item()
             num_neg = (y_curr == 0).sum().item()
             raw_ratio = num_neg / num_pos if num_pos > 0 else 1.0
-            clipped_weight = max(min(raw_ratio, 10.0), 1.0)
-            print(f"🔧 Task {task_id+1} Dynamic Weight: {raw_ratio:.2f} -> Clipped: {clipped_weight:.2f}")
+            clipped_weight = max(min(raw_ratio, 20.0), 1.0) # 截断防止梯度爆炸
+            
+            print(f"🔧 Task {task_id+1} 动态权重: {raw_ratio:.2f} -> 截断为: {clipped_weight:.2f}")
             dynamic_alpha = clipped_weight / (1.0 + clipped_weight)
             print(f"   -> Focal Loss Alpha: {dynamic_alpha:.4f}")
+            
+            # 更新 Loss 函数
             self.criterion = BinaryFocalLoss(alpha=dynamic_alpha, gamma=2.0).to(self.device)
 
-            # --- Snapshot Construction ---
+            # 3. 构建 Snapshot (当前任务子图)
+            # 作用: 仅保留当前时间窗口内的节点和边，防止显存爆炸 (OOM)
             task_start_t, task_end_t = time_steps[0], time_steps[-1]
             valid_node_mask = (self.dataset.timesteps >= task_start_t) & (self.dataset.timesteps <= task_end_t)
             row, col = self.dataset.edge_index
             edge_mask = valid_node_mask[row] & valid_node_mask[col]
+            
             snapshot_data = copy.copy(self.dataset)
             snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
-            snapshot_data = snapshot_data.to(self.device)
-            print(f"📉 Snapshot Nodes: {valid_node_mask.sum().item()} (Current Task Only)")
+            snapshot_data = snapshot_data.to(self.device) # 此时才搬运到 GPU
+            print(f"📉 Snapshot 节点数: {valid_node_mask.sum().item()} (仅当前任务)")
 
-            # --- Model Specific Pre-computations ---
+            # 4. 特定模型的预计算步骤
             is_ewc_mode = self.ewc_lambda > 0.0
             is_lwf_mode = self.lwf_alpha > 0.0
             is_replay_mode = self.replay_buffer.buffer_size_per_class > 0
 
+            # [HOGRL] 预计算高阶邻接矩阵 A^2, A^3...
             if self.config.train.model == 'hogrl':
-                print(f">>> [HOGRL] Pre-computing graphs for Task {task_id+1}...")
+                print(f">>> [HOGRL] 正在为 Task {task_id+1} 预计算高阶图...")
                 order = self.config.model.get('num_orders', 3)
                 snapshot_data.adjs = self._precompute_high_order_graphs(
                     snapshot_data.edge_index, self.dataset.num_nodes, order=order
                 )
             
-            if self.config.train.model == 'consisgad':
-                print(">>> [ConsisGAD] Pre-training LGA Module...")
+            # [ConsisGAD] 预训练 LGA 模块 (如果是旧版实现保留此逻辑，新版无需)
+            if self.config.train.model == 'consisgad' and hasattr(self.model, 'discriminator'):
+                print(">>> [ConsisGAD] 预训练 LGA 模块...")
                 for lga_ep in range(20): 
                     ld, lg = self._train_lga_step(snapshot_data)
 
-            # --- Epoch Loop ---
+            # --- Epoch 循环 (训练主逻辑) ---
             for epoch in range(1, epochs_per_task + 1):
                 global_step += 1
                 self.model.train()
                 self.optimizer.zero_grad()
                 
+                # 合并当前任务数据 + Replay Buffer 数据
                 replay_idx = self.replay_buffer.get_buffer_indices().to(self.config.train.device)
                 current_train_idx = torch.cat([task_train_idx, replay_idx])
                 
-                # --- GRAD MODEL SPECIAL FLOW ---
+                # ==========================================
+                # 分支 A: Grad 模型特殊训练流程
+                # ==========================================
                 if self.config.train.model == 'grad':
-                    # A. Train Supervised GCL Encoder (Eq. 2)
+                    # [cite_start]1. 训练 GCL 编码器 (监督对比学习) [cite: 741-766]
                     z_gcl = self.model.forward_gcl(snapshot_data)
-                    # Compute GCL Loss only on training nodes
                     gcl_labels = self.dataset.y[current_train_idx.cpu()].to(self.device)
                     loss_gcl = self._grad_gcl_loss(z_gcl[current_train_idx], gcl_labels)
                     
-                    # B. Train Diffusion (Algorithm 1)
-                    # Node Group Sampling
+                    # [cite_start]2. 训练扩散模型 (关系生成) [cite: 767-807]
+                    # 节点分组采样 (Node Group Sampling)
                     groups, perm_idx = self._node_group_sampling(snapshot_data.num_nodes, self.model.group_size)
                     
-                    # 随机采样 64 个 Group 进行训练
+                    # [关键修复] 随机采样部分 Group 以防止 OOM
                     num_sample_groups = 64
                     if len(groups) > num_sample_groups:
                         sampled_grp_idx = torch.randperm(len(groups))[:num_sample_groups]
@@ -796,110 +812,178 @@ class Trainer:
 
                     adj_batch_list = []
                     for grp_nodes in batch_groups:
-                        # 确保节点索引在 GPU 上以便进行 subgraph 操作
                         grp_nodes = grp_nodes.to(self.device)
-                        
-                        # 1. 提取子图边 (relabel_nodes=True 会自动把索引映射到 0~31)
+                        # 提取子图，显式传入 num_nodes 防止越界
                         sub_edge_index, _ = subgraph(
                             grp_nodes, 
                             snapshot_data.edge_index, 
                             relabel_nodes=True, 
                             num_nodes=snapshot_data.num_nodes
                         )
-                        
-                        # 2. 转为 Dense (32x32)
-                        # max_num_nodes 确保维度固定为 group_size
+                        # 转为 Dense 矩阵
                         dense_adj = to_dense_adj(sub_edge_index, max_num_nodes=self.model.group_size)[0]
                         adj_batch_list.append(dense_adj)
                     
-                    # 堆叠为 Batch [B, 32, 32]
                     adj_batch = torch.stack(adj_batch_list)
                     
-                    # Sample t
+                    # 采样时间步 t
                     current_batch_size = adj_batch.size(0)
                     t = torch.randint(0, self.model.diff_steps, (current_batch_size,), device=self.device)
                     noise = torch.randn_like(adj_batch)
                     
-                    # Diffusion Forward (Simplified linear schedule)
+                    # 扩散过程 (加噪)
                     alpha_cumprod = torch.linspace(0.99, 0.01, self.model.diff_steps).to(self.device)
                     alpha_t = alpha_cumprod[t].view(-1, 1, 1)
-                    
                     noisy_adj = torch.sqrt(alpha_t) * adj_batch + torch.sqrt(1 - alpha_t) * noise
+                    
+                    # 预测噪声
                     noise_pred = self.model.denoise_net(noisy_adj, t)
                     loss_diff = F.mse_loss(noise_pred, noise)
                     
-                    # C. Train Detector (Beta Wavelet)
+                    # [cite_start]3. 训练检测器 (Beta Wavelet) [cite: 823-835]
                     out, _ = self.model(snapshot_data, generated_adj=None)
                     outputs = out.reshape((self.dataset.x.shape[0]))
                     
                     task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
                     loss_det = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
                     
-                    # Total Loss (Multi-task)
+                    # 总 Loss: 检测 + GCL + 扩散
                     total_loss = loss_det + 0.1 * loss_gcl + 0.1 * loss_diff
+                    
+                    total_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    self.optimizer.step()
+                    self.scheduler.step(total_loss)
 
-                # --- STANDARD FLOW FOR OTHER MODELS ---
+                # ==========================================
+                # 分支 B: ConsisGAD 模型特殊训练流程 (双层交替优化)
+                # ==========================================
+                elif self.config.train.model == 'consisgad':
+                    # 初始化增强器的优化器
+                    if not hasattr(self, 'aug_optimizer'):
+                        self.aug_optimizer = optim.Adam(
+                            self.model.augmentor.parameters(), 
+                            lr=self.config.train.lr, 
+                            weight_decay=self.config.train.weight_decay
+                        )
+                    
+                    # 1. 前向传播 (同时获取原图和增强图的输出)
+                    out_real, out_aug, h_real, h_aug = self.model(snapshot_data, augment=True)
+                    
+                    outputs = out_real.reshape((self.dataset.x.shape[0]))
+                    out_aug = out_aug.reshape((self.dataset.x.shape[0]))
+                    
+                    # [cite_start]2. 筛选 "高质量无标签节点" (High Quality Nodes) [cite: 1312]
+                    probs = torch.sigmoid(outputs)
+                    all_indices = torch.arange(snapshot_data.num_nodes, device=self.device)
+                    is_unlabeled = ~torch.isin(all_indices, current_train_idx)
+                    
+                    # 论文阈值: Normal ~ 0.95, Fraud ~ 0.80
+                    tau_n, tau_a = 0.95, 0.80
+                    mask_hq = ((probs < (1 - tau_n)) | (probs > tau_a)) & is_unlabeled
+                    
+                    # ==========================================
+                    # Step A: 训练增强器 (Augmentor)
+                    # ==========================================
+                    # 1. 前向传播 (第一次)
+                    out_real, out_aug, h_real, h_aug = self.model(snapshot_data, augment=True)
+                    outputs = out_real.reshape((self.dataset.x.shape[0]))
+                    out_aug = out_aug.reshape((self.dataset.x.shape[0]))
+                    
+                    # 2. 筛选 HQ 节点
+                    probs = torch.sigmoid(outputs).detach() # detach 用于筛选掩码
+                    all_indices = torch.arange(snapshot_data.num_nodes, device=self.device)
+                    is_unlabeled = ~torch.isin(all_indices, current_train_idx)
+
+                    tau_n, tau_a = 0.70, 0.60
+
+                    mask_hq = ((probs < (1 - tau_n)) | (probs > tau_a)) & is_unlabeled
+                    
+                    if mask_hq.sum() > 0:
+                        l_consist = self._consisgad_loss_consistency(outputs[mask_hq].detach(), out_aug[mask_hq])
+                        l_diver = self._consisgad_loss_diversity(h_real[mask_hq].detach(), h_aug[mask_hq])
+                        loss_aug = l_consist + l_diver
+                        
+                        self.aug_optimizer.zero_grad()
+                        loss_aug.backward() # 不需要 retain_graph，因为 Step B 会重算
+                        self.aug_optimizer.step()
+                    
+                    # ==========================================
+                    # Step B: 训练 GNN (Backbone)
+                    # =========================================       
+                    self.optimizer.zero_grad()
+                    
+                    # 重新计算 Backbone 的输出 (只计算 GNN 部分，不走 Augmentor)
+                    # 这样可以构建一个新的计算图用于 GNN 更新
+                    out_real_new = self.model(snapshot_data, augment=False)
+                    outputs_new = out_real_new.reshape((self.dataset.x.shape[0]))
+                    
+                    # 1. Supervised Loss
+                    task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
+                    loss_sup = self.criterion(outputs_new[current_train_idx].reshape(-1, 1), task_y)
+                    
+                    # 2. Consistency Loss
+                    loss_consist_gnn = 0.0
+                    if mask_hq.sum() > 0:
+                        pseudo_labels = (probs[mask_hq] > 0.5).float().detach()
+                        
+                        # 关键：我们需要 GNN 对 "增强后的特征" 产生的预测
+                        # 此时我们使用 Step A 产生的 h_aug (并 detach 掉，视为固定输入)
+                        h_aug_fixed = h_aug.detach() 
+                        
+                        # 将这个固定的增强特征喂给 GNN 的分类器
+                        # 这需要 models.py 支持直接输入 embedding，或者我们手动调用 classifier
+                        out_aug_new = self.model.classifier(h_aug_fixed)
+                        out_aug_new = out_aug_new.reshape((self.dataset.x.shape[0]))
+                        
+                        loss_consist_gnn = F.binary_cross_entropy_with_logits(
+                            out_aug_new[mask_hq].view(-1, 1), 
+                            pseudo_labels.unsqueeze(1)
+                        )
+                    
+                    total_loss = loss_sup + 0.5 * loss_consist_gnn
+                    
+                    total_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    self.optimizer.step()
+                    self.scheduler.step(total_loss)
+
+                # ==========================================
+                # 分支 C: 标准模型训练流程 (BSL, PMP, GNNs)
+                # ==========================================
                 else:
+                    # PMP 掩码注入
                     if self.config.train.model == 'pmp':
                         pmp_mask = torch.zeros(self.dataset.num_nodes, dtype=torch.bool, device=self.device)
                         pmp_mask[current_train_idx] = True
                         self.dataset.pmp_mask = pmp_mask 
 
-                    consis_view_outputs = None
-                    if self.config.train.model == 'consisgad':
-                        with torch.no_grad():
-                            prob_adj = self.model.generator(snapshot_data.x, snapshot_data.edge_index)
-                            adj_sample = self.model.generator.sample_adj(prob_adj)
-                            consis_view_outputs = self.model.classifier(snapshot_data.x, snapshot_data.edge_index, adj_sample)
-
-                    z_all = None; alpha_all = None; proj_features = None
-                    
-                    # [修改点] BSL 模型 forward 返回更多统计量 (out, z, alpha)
+                    # 前向传播
+                    z_all = None; alpha_all = None
                     if self.config.train.model == 'bsl':
                          outputs, z_all, alpha_all = self.model(snapshot_data, return_stats=True)
                     else:
                         out_res = self.model(snapshot_data)
-                        if isinstance(out_res, tuple):
-                            if len(out_res) == 3: outputs, z_all, alpha_all = out_res
-                            elif len(out_res) == 2: outputs, proj_features = out_res 
-                            else: outputs = out_res[0]
-                        else:
-                            outputs = out_res
+                        if isinstance(out_res, tuple): outputs = out_res[0]
+                        else: outputs = out_res
                     
                     outputs = outputs.reshape((self.dataset.x.shape[0]))
                     task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
                     
-                    if self.config.train.model == 'gat_cobo':
-                        sw = torch.ones_like(task_y); sw[task_y==1] = 10.0
-                        task_loss = F.binary_cross_entropy_with_logits(
-                            outputs[current_train_idx].double().reshape(-1, 1), task_y, weight=sw, pos_weight=self.criterion.pos_weight)
-                    else:
-                        task_loss = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
+                    # 计算基础分类 Loss
+                    task_loss = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
                     
-                    grad_loss, bsl_loss, consis_loss, cl_loss = 0.0, 0.0, 0.0, 0.0
+                    bsl_loss, cl_loss = 0.0, 0.0
                     
-                    # [修改点] BSL 完整 Loss 计算 (调用 _compute_bsl_full_loss)
+                    # [BSL] 完整 Loss 计算
                     if self.config.train.model == 'bsl' and z_all is not None:
                         l_d, l_bsl_term = self._compute_bsl_full_loss(
                             self.model, snapshot_data, outputs, z_all, alpha_all, 
                             current_train_idx, valid_node_mask
                         )
-                        # 论文权重: alpha=0.4 (Disentangle), beta=0.8 (BSL) [cite: 506]
                         bsl_loss = 0.4 * l_d + 0.8 * l_bsl_term
                     
-                    # ConsisGAD Loss
-                    if self.config.train.model == 'consisgad' and consis_view_outputs is not None:
-                        all_idx = torch.arange(self.dataset.num_nodes, device=self.config.train.device)
-                        is_not_train = ~torch.isin(all_idx, current_train_idx)
-                        is_visible = valid_node_mask
-                        is_current_task = (self.dataset.timesteps >= time_steps[0]) & (self.dataset.timesteps <= time_steps[-1])
-                        unlabeled_mask = is_not_train & is_visible & is_current_task
-                        if unlabeled_mask.sum() > 0:
-                            p_orig = torch.sigmoid(outputs[unlabeled_mask])
-                            p_aug = torch.sigmoid(consis_view_outputs.reshape(-1)[unlabeled_mask])
-                            consis_loss = F.mse_loss(p_orig, p_aug)
-
-                    # CL Losses (LwF / EWC)
+                    # [CL] 增量学习正则化 (LwF / EWC)
                     if is_lwf_mode and task_id > 0: 
                         self.old_model.eval()
                         with torch.no_grad():
@@ -915,47 +999,33 @@ class Trainer:
                                 ewc_term += (self.ewc_fisher[name].to(param.device) * (param - self.ewc_params[name].to(param.device)).pow(2)).sum()
                         cl_loss += self.ewc_lambda * ewc_term
                     
-                    total_loss = task_loss + cl_loss
-                    if self.config.train.model == 'bsl': total_loss += bsl_loss
-                    if self.config.train.model == 'consisgad': total_loss += 1.0 * consis_loss
+                    total_loss = task_loss + cl_loss + bsl_loss
                 
-                # --- Backward & Optimize ---
-                total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                self.optimizer.step()
-                self.scheduler.step(total_loss)
+                    total_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    self.optimizer.step()
+                    self.scheduler.step(total_loss)
 
-                # ConsisGAD Auto-Tuning
-                if (self.config.train.model == 'consisgad') and epoch % 5 == 0:
-                    self.model.eval()
-                    with torch.no_grad():
-                        val_out = self.model(snapshot_data) 
-                        if isinstance(val_out, tuple): val_out = val_out[0]
-                        val_preds = torch.sigmoid(val_out.reshape(-1)[task_valid_idx]).cpu().numpy()
-                        val_labels = self.dataset.y[task_valid_idx].cpu().numpy()
-                        metrics = self.compute_metrics(val_preds, val_labels)
-                    self.model.train()
-                    cw = self.criterion.pos_weight.item()
-                    nw = cw
-                    if metrics['recall'] < 0.7: nw = min(cw * 1.5, 25.0) 
-                    elif metrics['precision'] < 0.3: nw = max(cw * 0.8, 1.0)
-                    if nw != cw: 
-                         self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([nw]).to(self.config.train.device).double())
-
-            # --- Task End ---
+            # --- 任务结束后续处理 (Task End) ---
+            # 1. EWC 更新 Fisher 矩阵
             if is_ewc_mode: self._update_ewc_metrics(task_train_idx, snapshot_data)
+            # 2. LwF 更新旧模型
             if is_lwf_mode:
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
+            # 3. Replay Buffer 更新
             if is_replay_mode:
                 idx_cpu = task_train_idx.cpu()
                 task_train_labels = self.dataset.y[idx_cpu].numpy() 
                 self.replay_buffer.add_exemplars(idx_cpu.numpy(), task_train_labels)
 
             task_duration = time.time() - task_start_time
+            
+            # 清理显存
             del task_train_idx, task_valid_idx, snapshot_data 
             gc.collect(); torch.cuda.empty_cache()
 
+            # 评估当前任务及历史任务
             metrics_entry = self.evaluate_cl_metrics(task_id, task_duration)
             metrics_entry["cl_mode"] = "EWC" if is_ewc_mode else ("LwF" if is_lwf_mode else ("Replay" if is_replay_mode else "Naive"))
             self.aggregate_metrics_history.append(metrics_entry)
@@ -965,6 +1035,7 @@ class Trainer:
         total_time = time.time() - start_time_total
         print(f"Total time: {total_time:.2f}s")
         
+        # 保存结果
         if self.aggregate_metrics_history:
             df = pd.DataFrame(self.aggregate_metrics_history)
             os.makedirs(os.path.join(self.config.train.save_dir, 'metrics'), exist_ok=True)

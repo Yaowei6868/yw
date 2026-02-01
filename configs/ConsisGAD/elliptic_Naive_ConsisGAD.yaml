@@ -22,7 +22,7 @@ train:
   lr: 0.001           # 主分类器的学习率 (LGA 模块在 Trainer 中硬编码为 0.01)
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/consisgad/
+  save_dir: weights/consisgad/elliptic_Naive_ConsisGAD
   
   # Naive 实验设置 (无增量学习策略，仅测试模型本身在流式数据上的能力)
   num_epochs_per_task: 100

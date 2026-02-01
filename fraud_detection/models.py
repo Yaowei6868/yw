@@ -689,79 +689,119 @@ class BSL(nn.Module):
 
 
 
-
 # --- ConsisGAD Components ---
-class LGAGenerator(nn.Module):
+class HomophilyAwareConv(MessagePassing):
     """
-    [ConsisGAD] Learnable Graph Augmentation Generator
-    Fixed: 移除 device 依赖，使用稀疏计算防止 OOM
+    [ConsisGAD] Homophily-Aware Neighborhood Aggregation (Section 3.1)
+    h_v = AGGR({ MLP(h_v || h_u) : u in N(v) })
     """
-    def __init__(self, input_dim, hidden_dim):
-        super(LGAGenerator, self).__init__()
-        self.conv1 = GCNConv(input_dim, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, hidden_dim)
+    def __init__(self, in_dim, out_dim):
+        super(HomophilyAwareConv, self).__init__(aggr='add') # 论文提及 AGGR 可以是 sum
+        self.mlp = nn.Sequential(
+            nn.Linear(in_dim * 2, out_dim),
+            nn.ReLU(),
+            nn.Linear(out_dim, out_dim)
+        )
 
     def forward(self, x, edge_index):
-        # 1. 编码
-        h = F.relu(self.conv1(x, edge_index))
-        h = self.conv2(h, edge_index)
-        
-        # 2. 仅计算现有边的保留概率 (Sparse Implementation)
-        # 避免 N*N 稠密矩阵计算
-        row, col = edge_index
-        h_src = h[row]
-        h_dst = h[col]
-        # P_ij = sigmoid(h_i * h_j)
-        score = (h_src * h_dst).sum(dim=-1)
-        prob_edge = torch.sigmoid(score)
-        
-        return prob_edge
+        # x: [N, in_dim]
+        return self.propagate(edge_index, x=x)
 
-    def sample_adj(self, prob_edge, temperature=1.0):
-        """Gumbel-Softmax Sampling for Edges"""
-        eps = 1e-20
-        u = torch.rand_like(prob_edge)
-        g = -torch.log(-torch.log(u + eps) + eps)
-        
-        logits = torch.log(prob_edge + eps) - torch.log(1 - prob_edge + eps)
-        # Soft sampling of edge weights
-        edge_weight = torch.sigmoid((logits + g) / temperature)
-        return edge_weight
-class LGADiscriminator(nn.Module):
-    """[ConsisGAD] Graph Discriminator"""
-    def __init__(self, input_dim, hidden_dim):
-        super(LGADiscriminator, self).__init__()
-        self.conv1 = GCNConv(input_dim, hidden_dim)
-        self.lin = nn.Linear(hidden_dim, 1)
+    def message(self, x_i, x_j):
+        # 拼接中心节点和邻居节点特征: [E, in_dim * 2]
+        cat_feat = torch.cat([x_i, x_j], dim=1)
+        # Edge-level homophily representation
+        return self.mlp(cat_feat)
 
-    def forward(self, x, edge_index, edge_weight=None):
-        h = F.relu(self.conv1(x, edge_index, edge_weight))
-        # 全局池化得到图表示
-        batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
-        h_g = global_mean_pool(h, batch)
-        score = torch.sigmoid(self.lin(h_g))
-        return score
+class LearnableAugmentor(nn.Module):
+    """
+    [ConsisGAD] Learnable Data Augmentation Module (Section 3.2.2)
+    h_hat = Sharpen(Atten(h)) * h
+    """
+    def __init__(self, hidden_dim, drop_ratio=0.5, temperature=0.1):
+        super(LearnableAugmentor, self).__init__()
+        self.atten_lin = nn.Linear(hidden_dim, hidden_dim)
+        self.att_bias = nn.Parameter(torch.zeros(hidden_dim))
+        self.drop_ratio = drop_ratio
+        self.temperature = temperature
+
+    def sharpen(self, h):
+        """
+        Algorithm 2: Sharpen Function (Differentiable Masking)
+        保留 Top-k 的维度，抑制其他维度
+        """
+        # 注意：为了实现可导的 Top-k Mask，论文使用了一种 Softmax 技巧
+        # 这里我们使用一种数值稳定的近似实现
+        
+        # 1. 计算 Mask 阈值 (Top-k)
+        # h: [N, D]
+        k = int(h.size(1) * (1 - self.drop_ratio))
+        if k < 1: k = 1
+        
+        # 找到第 k 大的值作为 pivot
+        topk_val, _ = torch.topk(h, k, dim=1)
+        pivot = topk_val[:, -1].unsqueeze(1) # [N, 1]
+        
+        # 2. 生成 Soft Mask
+        # 大于 pivot 的趋向于 1，小于的趋向于 0 (通过 temperature 控制陡峭程度)
+        mask = torch.sigmoid((h - pivot) / self.temperature)
+        return mask
+
+    def forward(self, h):
+        # 1. Attention: w = Wh + b (Eq. 8 simplified)
+        atten_weights = self.atten_lin(h) + self.att_bias
+        
+        # 2. Sharpening
+        mask = self.sharpen(atten_weights)
+        
+        # 3. Augmentation
+        return h * mask
+
 class ConsisGAD(nn.Module):
     """
-    [ConsisGAD] Main Model
-    Integrates GCN Classifier, LGA Generator, and Discriminator
+    [ConsisGAD] Full Model
     """
     def __init__(self, config):
         super(ConsisGAD, self).__init__()
         self.config = config
+        self.input_dim = config.input_dim
+        self.hidden_dim = config.hidden_dim
+        self.output_dim = config.output_dim
+        self.dropout = config.dropout
         
-        # 1. Classifier (Backbone)
-        self.classifier = GCN(config)
+        # 1. Backbone GNN (Homophily-Aware)
+        # 论文通常使用单层或两层，第一层做投影，第二层做聚合
+        self.lin_in = nn.Linear(self.input_dim, self.hidden_dim)
+        self.conv = HomophilyAwareConv(self.hidden_dim, self.hidden_dim)
+        self.classifier = nn.Linear(self.hidden_dim, self.output_dim)
         
-        # 2. LGA Components
-        # 这里的 hidden_dim 可以设置小一点以节省显存
-        lga_dim = getattr(config, 'lga_hidden_dim', 64)
-        self.generator = LGAGenerator(config.input_dim, lga_dim)
-        self.discriminator = LGADiscriminator(config.input_dim, lga_dim)
+        # 2. Learnable Augmentor
+        # 这里的参数需要根据 Dataset 调整，默认 xi=0.2
+        drop_ratio = getattr(config, 'aug_drop_ratio', 0.2)
+        self.augmentor = LearnableAugmentor(self.hidden_dim, drop_ratio=drop_ratio)
 
-    def forward(self, data):
-        # 默认前向传播只走分类器
-        return self.classifier(data)
+    def get_embedding(self, data):
+        x, edge_index = data.x, data.edge_index
+        h = F.relu(self.lin_in(x))
+        h = F.dropout(h, p=self.dropout, training=self.training)
+        h = self.conv(h, edge_index)
+        return h # [N, hidden_dim]
+
+    def forward(self, data, augment=False):
+        # 1. 获取 Backbone Embedding
+        h = self.get_embedding(data)
+        h = F.relu(h)
+        
+        # 2. 如果需要增强 (用于 Augmentor 训练或一致性训练)
+        if augment:
+            h_aug = self.augmentor(h)
+            out_aug = self.classifier(h_aug)
+            return self.classifier(h), out_aug, h, h_aug
+        
+        # 3. 正常输出
+        return self.classifier(h)
+
+
 
 # --- PMP (Partitioning Message Passing) ---
 class PMPLayer(MessagePassing):
