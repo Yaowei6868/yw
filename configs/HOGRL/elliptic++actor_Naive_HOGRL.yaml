@@ -19,7 +19,7 @@ train:
   print_freq: 10
   save_dir: weights/hogrl/elliptic_actor_Naive_HOGRL
   
-  num_epochs_per_task: 25 
+  num_epochs_per_task: 30 
   
   task_schedule: 
     - [0]

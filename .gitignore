@@ -8,9 +8,7 @@ __pycache__/
 
 # 3. 忽略训练产生的日志和模型权重
 runs/
-weights/
 checkpoints/
-*.pt
 *.pth
 
 # 4. 忽略虚拟环境

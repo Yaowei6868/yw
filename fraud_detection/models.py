@@ -804,61 +804,106 @@ class ConsisGAD(nn.Module):
 
 
 # --- PMP (Partitioning Message Passing) ---
+# --- PMP (Partitioning Message Passing) ---
 class PMPLayer(MessagePassing):
     """
     Partitioning Message Passing Layer (ICLR 2024)
-    Fixed: 修复 node_type 维度问题
+    [Fixed]: 引入分块计算 (Chunking) 以解决 OOM 问题
     """
-    def __init__(self, in_dim, out_dim):
+    def __init__(self, in_dim, out_dim, chunk_size=10000):
         super(PMPLayer, self).__init__(aggr='add')
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.chunk_size = chunk_size # 每次处理的节点数，调小可降低显存
         
-        self.W_fr = nn.Linear(in_dim, out_dim, bias=False)
-        self.W_be = nn.Linear(in_dim, out_dim, bias=False)
+        # 1. 权重生成器 (Weight Generators)
+        self.gen_fr = nn.Linear(in_dim, in_dim * out_dim)
+        self.gen_be = nn.Linear(in_dim, in_dim * out_dim)
         
+        # 2. 自适应系数生成器
         self.alpha_mlp = nn.Sequential(
             nn.Linear(in_dim, 1),
             nn.Sigmoid()
         )
+        
+        # 3. 中心节点变换
         self.W_self = nn.Linear(in_dim, out_dim)
 
     def forward(self, x, edge_index, y, train_mask):
-        # 1. Alpha
-        alpha = self.alpha_mlp(x) 
+        N = x.size(0)
+        device = x.device
         
-        # 2. Node Type Preparation [N, 1]
-        # 0=Benign, 1=Fraud, 2=Unlabeled
-        node_type = torch.full((x.size(0), 1), 2, device=x.device, dtype=y.dtype)
-        
+        # --- 步骤 A: 准备有效标签 (Partitioning) ---
+        y_effective = y.clone()
         if train_mask is not None:
-            # 确保 mask 是 bool 类型
             if train_mask.dtype != torch.bool:
                 train_mask = train_mask.bool()
-            # 填充已知标签
-            node_type[train_mask] = y[train_mask].unsqueeze(-1)
+            y_effective[~train_mask] = 2
+        else:
+            y_effective[y == -1] = 2
+            
+        # --- 步骤 B: 邻居分组聚合 (Neighbor Aggregation) ---
+        row, col = edge_index
+        src_labels = y_effective[row]
         
-        return self.propagate(edge_index, x=x, node_type=node_type, alpha=alpha)
+        mask_be = (src_labels == 0)
+        mask_fr = (src_labels == 1)
+        mask_un = (src_labels == 2)
+        
+        def aggregate(mask):
+            if mask.sum() == 0:
+                return torch.zeros(N, self.in_dim, device=device)
+            out = torch.zeros(N, self.in_dim, device=device)
+            out.scatter_add_(0, col[mask].unsqueeze(1).expand(-1, self.in_dim), x[row[mask]])
+            return out
 
-    def message(self, x_j, node_type_j, alpha_i):
-        msg_fr = self.W_fr(x_j)
-        msg_be = self.W_be(x_j)
-        msg_un = alpha_i * msg_fr + (1 - alpha_i) * msg_be
+        agg_be = aggregate(mask_be)
+        agg_fr = aggregate(mask_fr)
+        agg_un = aggregate(mask_un)
         
-        # node_type_j: [E, 1]
-        mask_fr = (node_type_j == 1)
-        mask_be = (node_type_j == 0)
-        mask_un = (node_type_j == 2)
+        # --- 步骤 C & D: 分块计算权重应用 (Chunked Weight Application) ---
+        # 防止 OOM: 不一次性生成 [N, D_in, D_out]，而是分批处理
         
-        final_msg = torch.zeros_like(msg_fr)
-        final_msg = torch.where(mask_fr, msg_fr, final_msg)
-        final_msg = torch.where(mask_be, msg_be, final_msg)
-        final_msg = torch.where(mask_un, msg_un, final_msg)
+        out_be = torch.zeros(N, self.out_dim, device=device)
+        out_fr = torch.zeros(N, self.out_dim, device=device)
+        term_un_fr = torch.zeros(N, self.out_dim, device=device)
+        term_un_be = torch.zeros(N, self.out_dim, device=device)
         
-        return final_msg
-
-    def update(self, aggr_out, x):
-        return aggr_out + self.W_self(x)
+        # 使用配置的 chunk_size (例如 10000)
+        for i in range(0, N, self.chunk_size):
+            end = min(i + self.chunk_size, N)
+            
+            # 1. 截取当前 Chunk 的特征
+            x_chunk = x[i:end]
+            agg_be_chunk = agg_be[i:end]
+            agg_fr_chunk = agg_fr[i:end]
+            agg_un_chunk = agg_un[i:end]
+            
+            # 2. 生成当前 Chunk 的专属权重 [Chunk, D_in * D_out] -> [Chunk, D_in, D_out]
+            # 这里的显存占用只有全量的 1/20 左右
+            w_fr_chunk = self.gen_fr(x_chunk).view(-1, self.in_dim, self.out_dim)
+            w_be_chunk = self.gen_be(x_chunk).view(-1, self.in_dim, self.out_dim)
+            
+            # 3. 执行矩阵乘法 [Chunk, 1, D_in] @ [Chunk, D_in, D_out] -> [Chunk, D_out]
+            out_be[i:end] = torch.matmul(agg_be_chunk.unsqueeze(1), w_be_chunk).squeeze(1)
+            out_fr[i:end] = torch.matmul(agg_fr_chunk.unsqueeze(1), w_fr_chunk).squeeze(1)
+            
+            # 计算 Unlabeled 的两部分 (用于步骤 E)
+            term_un_fr[i:end] = torch.matmul(agg_un_chunk.unsqueeze(1), w_fr_chunk).squeeze(1)
+            term_un_be[i:end] = torch.matmul(agg_un_chunk.unsqueeze(1), w_be_chunk).squeeze(1)
+            
+            # 显式释放临时变量
+            del w_fr_chunk, w_be_chunk
+        
+        # --- 步骤 E: 处理无标签邻居 (Adaptive Combination) ---
+        alpha = self.alpha_mlp(x) # [N, 1]
+        out_un = alpha * term_un_fr + (1 - alpha) * term_un_be
+        
+        # --- 步骤 F: 最终组合 ---
+        out = out_be + out_fr + out_un + self.W_self(x)
+        
+        return out
+        
 class PMPModel(nn.Module):
     def __init__(self, config):
         super(PMPModel, self).__init__()
@@ -868,6 +913,8 @@ class PMPModel(nn.Module):
         self.output_dim = config.output_dim
         self.dropout = config.dropout
         
+        # 论文主要推荐 1 层 (L=1)，但在 benchmark 中通常使用 2 层结构
+        # 这里使用 2 层结构以增强表达能力
         self.conv1 = PMPLayer(self.input_dim, self.hidden_dim)
         self.conv2 = PMPLayer(self.hidden_dim, self.hidden_dim)
         self.classifier = nn.Linear(self.hidden_dim, self.output_dim)
@@ -875,17 +922,23 @@ class PMPModel(nn.Module):
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
         
-        # 从 data 中获取 pmp_mask (由 Trainer 注入)
+        # 获取 PMP Mask (由 Trainer 注入，标记哪些节点是 Training set)
+        # 这对于区分 Benign/Fraud vs Unlabeled 至关重要
         mask = getattr(data, 'pmp_mask', None)
         if mask is None:
+            # 如果未提供 mask，假设所有节点都是 Unlabeled (除了明确的 training loop)
+            # 或者为了代码健壮性，初始化为全 False
             mask = torch.zeros(x.size(0), dtype=torch.bool, device=x.device)
 
+        # Layer 1
         h = self.conv1(x, edge_index, data.y, mask)
         h = F.relu(h)
         h = F.dropout(h, p=self.dropout, training=self.training)
         
+        # Layer 2
         h = self.conv2(h, edge_index, data.y, mask)
         h = F.relu(h)
+        h = F.dropout(h, p=self.dropout, training=self.training)
         
-        return self.classifier(h)
-
+        out = self.classifier(h)
+        return out

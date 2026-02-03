@@ -31,7 +31,7 @@ train:
   
   # 训练轮次
   # Grad 包含 Diffusion 和 GCL 多个任务，建议适当增加 Epoch 保证收敛
-  num_epochs_per_task: 30 
+  num_epochs_per_task: 50 
   
   task_schedule:
     - [0]
@@ -46,6 +46,6 @@ train:
     - [9]
 
   # --- CL 模式 (增量学习) ---
-  ewc_lambda: 100
-  buffer_size_per_class: 1000
+  ewc_lambda: 1
+  buffer_size_per_class: 500
   

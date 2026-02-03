@@ -26,7 +26,7 @@ train:
   save_dir: weights/bsl/elliptic_actor_Naive_BSL
 
   # 建议 BSL 训练轮数稍多一点，因为它有辅助任务
-  num_epochs_per_task: 50 
+  num_epochs_per_task: 30 
   
   # 对应 datasets.py 处理后的 0-9 Task ID
   task_schedule: 

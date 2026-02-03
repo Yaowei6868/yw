@@ -19,11 +19,11 @@ train:
   model: cgnn
   device: cuda
   lr: 0.001
-  weight_decay: 5e-4
+  weight_decay: 1e-3
   print_freq: 10
   save_dir: weights/cgnn/elliptic_actor_Naive_CGNN
   
-  num_epochs_per_task: 25 
+  num_epochs_per_task: 30 
   
   # 【关键修复】必须包含任务调度表，否则 Trainer 会报错
   task_schedule: 
@@ -43,5 +43,5 @@ train:
   buffer_size_per_class: 0
   
   # --- CGNN 特有 Loss 权重 ---
-  cgnn_lambda: 0.1  # CSD Loss (语义分解对比损失)
+  cgnn_lambda: 0.5  # CSD Loss (语义分解对比损失)
   cgnn_beta: 0.1    # Consistency Loss (一致性损失)
