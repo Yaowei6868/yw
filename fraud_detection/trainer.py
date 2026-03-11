@@ -636,7 +636,7 @@ class Trainer:
                 
                 outputs = outputs.reshape((self.dataset.x.shape[0]))
                 probs = torch.sigmoid(outputs).detach().cpu().numpy()
-                labels_all = self.dataset.y.numpy()
+                labels_all = self.dataset.y.cpu().numpy()
 
                 valid_idx = self.task_valid_indices_map[t_id]
                 t_preds = probs[valid_idx]
