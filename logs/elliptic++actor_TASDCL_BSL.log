@@ -1,0 +1,18 @@
+
+--- Training on Task 1 (Timesteps: 1 to 5) ---
+🔧 Task 1 动态权重: 8.71 -> 截断为: 8.71
+   -> Focal Loss Alpha: 0.8971
+📉 Snapshot 节点数: 577563 (仅当前任务)
+Traceback (most recent call last):
+  File "/home/yw/train.py", line 21, in <module>
+    trainer.train()
+  File "/home/yw/fraud_detection/trainer.py", line 971, in train
+    total_loss.backward()
+  File "/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/_tensor.py", line 625, in backward
+    torch.autograd.backward(
+  File "/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/autograd/__init__.py", line 354, in backward
+    _engine_run_backward(
+  File "/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/autograd/graph.py", line 841, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.21 GiB. GPU 0 has a total capacity of 23.56 GiB of which 1.76 GiB is free. Including non-PyTorch memory, this process has 21.79 GiB memory in use. Of the allocated memory 16.99 GiB is allocated by PyTorch, and 4.49 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
