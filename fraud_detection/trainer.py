@@ -128,6 +128,9 @@ class Trainer:
             self.dataset_obj = datasets_map[self.config.train.dataset](config.dataset)
             self.dataset = self.dataset_obj.pyg_dataset().to(self.device)
             
+        # 统一转为 float32，避免与模型权重的 dtype 不匹配
+        self.dataset.x = self.dataset.x.float()
+
         self.config.model.input_dim = self.dataset.num_node_features
 
         # 初始化模型
