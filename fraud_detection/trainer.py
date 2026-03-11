@@ -979,7 +979,7 @@ class Trainer:
                 self.old_model.to(self.config.train.device)
             if is_replay_mode:
                 idx_cpu = task_train_idx.cpu()
-                task_train_labels = self.dataset.y[idx_cpu].numpy()
+                task_train_labels = self.dataset.y[idx_cpu].cpu().numpy()
                 self.replay_buffer.add_exemplars(idx_cpu.numpy(), task_train_labels)
 
             # [TASD-CL] Component B: 任务结束后更新 SPC 子空间原型库
