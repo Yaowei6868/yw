@@ -22,8 +22,8 @@ from torch_geometric.utils import to_dense_adj, subgraph
 
 # 引入所有模型
 from .models import (
-    GAT, GCN, GIN, GraphSAGE, STAGNN, EvolveGCN, TGN, MLP, 
-    GATv2, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD
+    GAT, GCN, GIN, GraphSAGE, STAGNN, EvolveGCN, TGN, MLP,
+    GATv2, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD, GraphSMOTE
 )
 from .datasets import EllipticDataset, EllipticPlusActorDataset, TFinanceDataset
 from .buffer import ReplayBuffer, SubspacePrototypeBuffer
@@ -95,8 +95,9 @@ models_map = {
     "bsl": BSL,           
     "pmp": PMPModel,      
     "consisgad": ConsisGAD, 
-    "gat_cobo": GATv2,    
-    "fraudgnn_rl": GATv2  
+    "gat_cobo": GATv2,
+    "fraudgnn_rl": GATv2,
+    "graphsmote": GraphSMOTE,
 }
 
 # 【修改点 1】: 将 tfinance 注册到数据集映射表中
