@@ -10,6 +10,17 @@ __pycache__/
 runs/
 checkpoints/
 *.pth
+*.pt
+weights/
+
+# 6. 忽略生成的结果文件
+results_summary.csv
+results_report.txt
+project_structure.txt
+结果表.et
+
+# 7. 忽略 Claude 内部配置
+.claude/
 
 # 4. 忽略虚拟环境
 venv/

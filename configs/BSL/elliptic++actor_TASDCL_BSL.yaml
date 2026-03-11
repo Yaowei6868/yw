@@ -1,0 +1,41 @@
+name: elliptic++actor_TASDCL_BSL
+
+model:
+  input_dim: ???
+  hidden_dim: 96
+  output_dim: 1
+  dropout: 0.3
+  num_heads: 4
+
+train:
+  dataset: elliptic_actor
+  model: bsl
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/bsl/elliptic++actor_TASDCL_BSL
+
+  num_epochs_per_task: 100
+  task_schedule:
+    - [1, 5]
+    - [6, 10]
+    - [11, 15]
+    - [16, 20]
+    - [21, 25]
+    - [26, 30]
+    - [31, 35]
+    - [36, 40]
+    - [41, 45]
+    - [46, 49]
+
+  # TASD-CL 三组件配置
+  ewc_lambda: 0.5
+  spc_lambda: 0.5
+  spc_n_samples: 32
+  scd_lambda: 0.3
+  scd_tau: 0.5
+
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0

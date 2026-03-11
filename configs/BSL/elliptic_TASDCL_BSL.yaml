@@ -1,0 +1,55 @@
+name: elliptic_TASDCL_BSL
+
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  input_dim: ???      # 自动推断 (166)
+  hidden_dim: 96      # 必须能被 3 整除 (96/3=32 sub_dim)
+  output_dim: 1
+  dropout: 0.3
+  num_heads: 4
+
+train:
+  dataset: elliptic
+  model: bsl
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/bsl/elliptic_TASDCL_BSL
+
+  num_epochs_per_task: 100
+  task_schedule:
+    - [1, 5]
+    - [6, 10]
+    - [11, 15]
+    - [16, 20]
+    - [21, 25]
+    - [26, 30]
+    - [31, 35]
+    - [36, 40]
+    - [41, 45]
+    - [46, 49]
+
+  # ── Component A: SSF (语义分层 EWC) ──────────────────────────────────────
+  # 基础 λ 乘以语义角色系数后实际范围: att_vec/att_bias=1.5, edge_decoder=1.0,
+  # gnn_encoder/lin_in=0.25, classifier=0.15
+  ewc_lambda: 0.5
+
+  # ── Component B: SPC (子空间原型凝缩回放) ────────────────────────────────
+  spc_lambda: 0.5       # SPC 回放损失权重
+  spc_n_samples: 32     # 每类每任务从原型中采样的节点数
+
+  # ── Component C: SCD (置信度过滤子空间蒸馏) ──────────────────────────────
+  scd_lambda: 0.3       # SCD 损失权重
+  scd_tau: 0.5          # 旧模型 alpha_k > tau 才参与该子空间的蒸馏
+
+  # 关闭标准 LwF（由 SCD 替代，避免重复蒸馏）
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+
+  # 关闭标准 ER（由 SPC 替代，避免图结构噪声）
+  buffer_size_per_class: 0

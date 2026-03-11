@@ -1,4 +1,4 @@
-name: elliptic_ER_GCN
+name: elliptic_TASDCL_noSPC_BSL
 
 dataset:
   features_path: "data/elliptic/elliptic_txs_features.csv"
@@ -7,21 +7,22 @@ dataset:
 
 model:
   input_dim: ???
-  hidden_dim: 128
+  hidden_dim: 96
   output_dim: 1
-  dropout: 0.5
+  dropout: 0.3
+  num_heads: 4
 
 train:
   dataset: elliptic
-  model: gcn
+  model: bsl
   device: cuda
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/gcn/
+  save_dir: weights/bsl/elliptic_TASDCL_noSPC_BSL
 
   num_epochs_per_task: 100
-  task_schedule: 
+  task_schedule:
     - [1, 5]
     - [6, 10]
     - [11, 15]
@@ -32,9 +33,16 @@ train:
     - [36, 40]
     - [41, 45]
     - [46, 49]
-    
-  # ER (Experience Replay) only
-  ewc_lambda: 0.0
+
+  # Ablation: SSF + SCD only (no SPC)
+  ewc_lambda: 0.5
+
+  spc_lambda: 0.0
+  spc_n_samples: 0
+
+  scd_lambda: 0.3
+  scd_tau: 0.5
+
   lwf_alpha: 0.0
   lwf_temperature: 1.0
-  buffer_size_per_class: 100
+  buffer_size_per_class: 0
