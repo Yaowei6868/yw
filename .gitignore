@@ -1,31 +1,29 @@
-# 1. 忽略数据文件夹 
+# ── 数据集（体积大，不入库）──────────────────────────────────────
 data/
 datasets/
 
-# 2. 忽略 Python 编译产生的垃圾文件
+# ── 模型权重文件（体积大，不入库）────────────────────────────────
+# 只忽略 .pt/.pth 权重文件本身，放行目录结构和 CSV 结果
+*.pt
+*.pth
+checkpoints/
+
+# weights/ 目录: 忽略权重文件，但放行 metrics/ 下的 CSV
+weights/**/*.pt
+weights/**/*.pth
+
+# ── Python 编译缓存（忽略）───────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
 
-# 3. 忽略训练产生的日志和模型权重
-runs/
-checkpoints/
-*.pth
-*.pt
-weights/
-
-# 6. 忽略生成的结果文件
-results_summary.csv
-results_report.txt
-project_structure.txt
-结果表.et
-
-# 7. 忽略 Claude 内部配置
-.claude/
-
-# 4. 忽略虚拟环境
+# ── 虚拟环境 & IDE（忽略）────────────────────────────────────────
 venv/
 .env
-
-# 5. 忽略 IDE 配置文件
 .vscode/
 .idea/
+
+# ── 其他杂项（忽略）──────────────────────────────────────────────
+.claude/
+结果表.et
+project_structure.txt
