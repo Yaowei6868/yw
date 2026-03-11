@@ -2,10 +2,10 @@ name: elliptic++actor_TASDCL_BSL
 
 model:
   input_dim: ???
-  hidden_dim: 48      # 96->48 降低显存占用 (48/3=16 满足BSL整除3要求)
+  hidden_dim: 96      # task_schedule改为单步后snapshot变小，可恢复96
   output_dim: 1
   dropout: 0.3
-  num_heads: 2        # 4->2 降低GATv2Conv显存占用
+  num_heads: 4
 
 train:
   dataset: elliptic_actor
