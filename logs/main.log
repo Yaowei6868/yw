@@ -1,0 +1,136 @@
+nohup: ignoring input
+
+██████████████████████████████████████████████████████████
+█  TASD-CL 主对比实验 — 自动化运行脚本                     █
+█  启动时间: 2026-03-11 10:10:00                  █
+█  Python:  Python 3.12.11                    █
+████████████████████████████████████████████████████████ ██
+
+╔══════════════════════════════════════════════════════════╗
+║  DATASET 1/2 — Elliptic                                  ║
+╚══════════════════════════════════════════════════════════╝
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [A] 传统静态基线 (Sequential Fine-Tuning)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [SKIP] elliptic_Naive_GCN
+  [SKIP] elliptic_Naive_GAT
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [B] 持续学习经典基线 (CL Baselines)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [SKIP] elliptic_EWC_GCN
+  [SKIP] elliptic_LwF_GCN
+  [SKIP] elliptic_ER_GCN
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [C] 不平衡处理变体 (Imbalance Handling)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [SKIP] elliptic_Naive_GraphSMOTE
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [D] 核心 SOTA 欺诈检测模型 (2024-2025)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [SKIP] elliptic_Naive_HOGRL
+  [SKIP] elliptic_Naive_CGNN
+  [SKIP] elliptic_Naive_ConsisGAD
+  [SKIP] elliptic_Naive_Grad
+  [SKIP] elliptic_Naive_BSL
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [E] 我们的方法
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [SKIP] elliptic_TASDCL_BSL
+
+╔══════════════════════════════════════════════════════════╗
+║  DATASET 2/2 — Elliptic++ Actor                          ║
+╚══════════════════════════════════════════════════════════╝
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [A] 传统静态基线
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌─────────────────────────────────────────────────────┐
+  │ RUN: elliptic_actor_Naive_GCN                        │
+  │ LOG: logs/elliptic_actor_Naive_GCN.log               │
+  └─────────────────────────────────────────────────────┘
+  [DONE] elliptic_actor_Naive_GCN                      0m31s
+
+  ┌─────────────────────────────────────────────────────┐
+  │ RUN: elliptic_actor_Naive_GAT                        │
+  │ LOG: logs/elliptic_actor_Naive_GAT.log               │
+  └─────────────────────────────────────────────────────┘
+  [DONE] elliptic_actor_Naive_GAT                      0m56s
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [B] 持续学习经典基线
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌─────────────────────────────────────────────────────┐
+  │ RUN: elliptic_actor_EWC_GCN                          │
+  │ LOG: logs/elliptic_actor_EWC_GCN.log                 │
+  └─────────────────────────────────────────────────────┘
+  [DONE] elliptic_actor_EWC_GCN                        0m32s
+
+  ┌─────────────────────────────────────────────────────┐
+  │ RUN: elliptic_actor_LwF_GCN                          │
+  │ LOG: logs/elliptic_actor_LwF_GCN.log                 │
+  └─────────────────────────────────────────────────────┘
+  [DONE] elliptic_actor_LwF_GCN                        0m35s
+
+  ┌─────────────────────────────────────────────────────┐
+  │ RUN: elliptic_actor_ER_GCN                           │
+  │ LOG: logs/elliptic_actor_ER_GCN.log                  │
+  └─────────────────────────────────────────────────────┘
+  [DONE] elliptic_actor_ER_GCN                         0m31s
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [C] 不平衡处理变体
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌─────────────────────────────────────────────────────┐
+  │ RUN: elliptic_actor_Naive_GraphSMOTE                 │
+  │ LOG: logs/elliptic_actor_Naive_GraphSMOTE.log        │
+  └─────────────────────────────────────────────────────┘
+  [DONE] elliptic_actor_Naive_GraphSMOTE               0m26s
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [D] 核心 SOTA 欺诈检测模型
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [SKIP] elliptic_actor_Naive_HOGRL
+  [SKIP] elliptic_actor_Naive_CGNN
+  [SKIP] elliptic_actor_Naive_ConsisGAD
+  [SKIP] elliptic_actor_Naive_Grad
+  [SKIP] elliptic_actor_Naive_BSL
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [E] 我们的方法
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌─────────────────────────────────────────────────────┐
+  │ RUN: elliptic++actor_TASDCL_BSL                      │
+  │ LOG: logs/elliptic++actor_TASDCL_BSL.log             │
+  └─────────────────────────────────────────────────────┘
+  [FAIL] elliptic++actor_TASDCL_BSL — exit code 1
+         详细日志: /home/yw/logs/elliptic++actor_TASDCL_BSL.log
+         最后10行:
+           File "/home/yw/fraud_detection/trainer.py", line 971, in train
+             total_loss.backward()
+           File "/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/_tensor.py", line 625, in backward
+             torch.autograd.backward(
+           File "/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/autograd/__init__.py", line 354, in backward
+             _engine_run_backward(
+           File "/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/autograd/graph.py", line 841, in _engine_run_backward
+             return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.21 GiB. GPU 0 has a total capacity of 23.56 GiB of which 1.76 GiB is free. Including non-PyTorch memory, this process has 21.79 GiB memory in use. Of the allocated memory 16.99 GiB is allocated by PyTorch, and 4.49 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+██████████████████████████████████████████████████████████
+█  实验运行汇总                                             █
+█  完成时间: 2026-03-11 10:13:43                            █
+█  总耗时:   0h 3m 43s                                      █
+█  ✅ 已完成: 6  | ⏭  已跳过: 17 | ❌ 失败: 1           █
+█                                                          █
+█  运行结果收集:                                            █
+█    python collect_results.py                             █
+██████████████████████████████████████████████████████████
