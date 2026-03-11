@@ -1,0 +1,320 @@
+/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:1343: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  current = float(metrics)
+
+--- Training on Task 1 (Timesteps: 1 to 5) ---
+🔧 Task 1 动态权重: 93.15 -> 截断为: 20.00
+   -> Focal Loss Alpha: 0.9524
+📉 Snapshot 节点数: 31541 (仅当前任务)
+>>> [HOGRL] 正在为 Task 1 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 1 ***
+  [Accuracy]  Avg F1: 0.1438 | AUC-ROC: 0.9522 | G-Mean: 0.8675
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
+  > Matrix Row:  [0.1438]
+
+--- Training on Task 2 (Timesteps: 6 to 10) ---
+🔧 Task 2 动态权重: 9.69 -> 截断为: 9.69
+   -> Focal Loss Alpha: 0.9064
+📉 Snapshot 节点数: 26556 (仅当前任务)
+>>> [HOGRL] 正在为 Task 2 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 2 ***
+  [Accuracy]  Avg F1: 0.2120 | AUC-ROC: 0.9278 | G-Mean: 0.7466
+  [Stability] Avg Forgetting (↓): 0.1002 | Avg BWT (↑): -0.1002
+  > Matrix Row:  [0.0436 0.3805]
+
+--- Training on Task 3 (Timesteps: 11 to 15) ---
+🔧 Task 3 动态权重: 3.73 -> 截断为: 3.73
+   -> Focal Loss Alpha: 0.7887
+📉 Snapshot 节点数: 16532 (仅当前任务)
+>>> [HOGRL] 正在为 Task 3 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 3 ***
+  [Accuracy]  Avg F1: 0.3002 | AUC-ROC: 0.9411 | G-Mean: 0.7396
+  [Stability] Avg Forgetting (↓): 0.0501 | Avg BWT (↑): -0.0501
+  > Matrix Row:  [0.0436 0.3805 0.4765]
+
+--- Training on Task 4 (Timesteps: 16 to 20) ---
+🔧 Task 4 动态权重: 4.60 -> 截断为: 4.60
+   -> Focal Loss Alpha: 0.8215
+📉 Snapshot 节点数: 16133 (仅当前任务)
+>>> [HOGRL] 正在为 Task 4 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 4 ***
+  [Accuracy]  Avg F1: 0.3522 | AUC-ROC: 0.9290 | G-Mean: 0.7289
+  [Stability] Avg Forgetting (↓): 0.0334 | Avg BWT (↑): -0.0334
+  > Matrix Row:  [0.0436 0.3805 0.4765 0.5084]
+
+--- Training on Task 5 (Timesteps: 21 to 25) ---
+🔧 Task 5 动态权重: 8.42 -> 截断为: 8.42
+   -> Focal Loss Alpha: 0.8939
+📉 Snapshot 节点数: 20502 (仅当前任务)
+>>> [HOGRL] 正在为 Task 5 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 5 ***
+  [Accuracy]  Avg F1: 0.3511 | AUC-ROC: 0.9166 | G-Mean: 0.7299
+  [Stability] Avg Forgetting (↓): 0.0250 | Avg BWT (↑): -0.0250
+  > Matrix Row:  [0.0436 0.3805 0.4765 0.5084 0.3464]
+
+--- Training on Task 6 (Timesteps: 26 to 30) ---
+🔧 Task 6 动态权重: 3.38 -> 截断为: 3.38
+   -> Focal Loss Alpha: 0.7716
+📉 Snapshot 节点数: 12023 (仅当前任务)
+>>> [HOGRL] 正在为 Task 6 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 6 ***
+  [Accuracy]  Avg F1: 0.3771 | AUC-ROC: 0.8943 | G-Mean: 0.7203
+  [Stability] Avg Forgetting (↓): 0.0200 | Avg BWT (↑): -0.0200
+  > Matrix Row:  [0.0436 0.3805 0.4765 0.5084 0.3464 0.5073]
+
+--- Training on Task 7 (Timesteps: 31 to 35) ---
+🔧 Task 7 动态权重: 5.30 -> 截断为: 5.30
+   -> Focal Loss Alpha: 0.8413
+📉 Snapshot 节点数: 18485 (仅当前任务)
+>>> [HOGRL] 正在为 Task 7 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 7 ***
+  [Accuracy]  Avg F1: 0.3739 | AUC-ROC: 0.8772 | G-Mean: 0.6960
+  [Stability] Avg Forgetting (↓): 0.0167 | Avg BWT (↑): -0.0167
+  > Matrix Row:  [0.0436 0.3805 0.4765 0.5084 0.3464 0.5073 0.3549]
+
+--- Training on Task 8 (Timesteps: 36 to 40) ---
+🔧 Task 8 动态权重: 13.36 -> 截断为: 10.00
+   -> Focal Loss Alpha: 0.9091
+📉 Snapshot 节点数: 19831 (仅当前任务)
+>>> [HOGRL] 正在为 Task 8 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 8 ***
+  [Accuracy]  Avg F1: 0.3519 | AUC-ROC: 0.8683 | G-Mean: 0.6833
+  [Stability] Avg Forgetting (↓): 0.0143 | Avg BWT (↑): -0.0143
+  > Matrix Row:  [0.0436 0.3805 0.4765 0.5084 0.3464 0.5073 0.3549 0.198 ]
+
+--- Training on Task 9 (Timesteps: 41 to 45) ---
+🔧 Task 9 动态权重: 17.19 -> 截断为: 10.00
+   -> Focal Loss Alpha: 0.9091
+📉 Snapshot 节点数: 28118 (仅当前任务)
+>>> [HOGRL] 正在为 Task 9 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 9 ***
+  [Accuracy]  Avg F1: 0.3273 | AUC-ROC: 0.8623 | G-Mean: 0.6640
+  [Stability] Avg Forgetting (↓): 0.0125 | Avg BWT (↑): -0.0125
+  > Matrix Row:  [0.0436 0.3805 0.4765 0.5084 0.3464 0.5073 0.3549 0.198  0.1305]
+
+--- Training on Task 10 (Timesteps: 46 to 49) ---
+🔧 Task 10 动态权重: 21.89 -> 截断为: 10.00
+   -> Focal Loss Alpha: 0.9091
+📉 Snapshot 节点数: 14048 (仅当前任务)
+>>> [HOGRL] 正在为 Task 10 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 10 ***
+  [Accuracy]  Avg F1: 0.3084 | AUC-ROC: 0.8342 | G-Mean: 0.6519
+  [Stability] Avg Forgetting (↓): 0.0111 | Avg BWT (↑): -0.0111
+  > Matrix Row:  [0.0436 0.3805 0.4765 0.5084 0.3464 0.5073 0.3549 0.198  0.1305 0.1379]
+All tasks trained.
+Total time: 68.86s

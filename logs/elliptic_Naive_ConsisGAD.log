@@ -1,0 +1,115 @@
+/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:1343: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  current = float(metrics)
+
+--- Training on Task 1 (Timesteps: 1 to 5) ---
+🔧 Task 1 动态权重: 93.15 -> 截断为: 20.00
+   -> Focal Loss Alpha: 0.9524
+📉 Snapshot 节点数: 31541 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
+*** CL Metrics @ Task 1 ***
+  [Accuracy]  Avg F1: 0.0323 | AUC-ROC: 0.7547 | G-Mean: 0.5774
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
+  > Matrix Row:  [0.0323]
+
+--- Training on Task 2 (Timesteps: 6 to 10) ---
+🔧 Task 2 动态权重: 9.69 -> 截断为: 9.69
+   -> Focal Loss Alpha: 0.9064
+📉 Snapshot 节点数: 26556 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
+*** CL Metrics @ Task 2 ***
+  [Accuracy]  Avg F1: 0.1418 | AUC-ROC: 0.6850 | G-Mean: 0.5591
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
+  > Matrix Row:  [0.0323 0.2513]
+
+--- Training on Task 3 (Timesteps: 11 to 15) ---
+🔧 Task 3 动态权重: 3.73 -> 截断为: 3.73
+   -> Focal Loss Alpha: 0.7887
+📉 Snapshot 节点数: 16532 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
+*** CL Metrics @ Task 3 ***
+  [Accuracy]  Avg F1: 0.2122 | AUC-ROC: 0.6759 | G-Mean: 0.5255
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529]
+
+--- Training on Task 4 (Timesteps: 16 to 20) ---
+🔧 Task 4 动态权重: 4.60 -> 截断为: 4.60
+   -> Focal Loss Alpha: 0.8215
+📉 Snapshot 节点数: 16133 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
+*** CL Metrics @ Task 4 ***
+  [Accuracy]  Avg F1: 0.2655 | AUC-ROC: 0.6631 | G-Mean: 0.5259
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529 0.4254]
+
+--- Training on Task 5 (Timesteps: 21 to 25) ---
+🔧 Task 5 动态权重: 8.42 -> 截断为: 8.42
+   -> Focal Loss Alpha: 0.8939
+📉 Snapshot 节点数: 20502 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
+*** CL Metrics @ Task 5 ***
+  [Accuracy]  Avg F1: 0.2692 | AUC-ROC: 0.6664 | G-Mean: 0.5461
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529 0.4254 0.2838]
+
+--- Training on Task 6 (Timesteps: 26 to 30) ---
+🔧 Task 6 动态权重: 3.38 -> 截断为: 3.38
+   -> Focal Loss Alpha: 0.7716
+📉 Snapshot 节点数: 12023 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
+*** CL Metrics @ Task 6 ***
+  [Accuracy]  Avg F1: 0.2987 | AUC-ROC: 0.6495 | G-Mean: 0.5422
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): -0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529 0.4254 0.2838 0.4466]
+
+--- Training on Task 7 (Timesteps: 31 to 35) ---
+🔧 Task 7 动态权重: 5.30 -> 截断为: 5.30
+   -> Focal Loss Alpha: 0.8413
+📉 Snapshot 节点数: 18485 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
+*** CL Metrics @ Task 7 ***
+  [Accuracy]  Avg F1: 0.3020 | AUC-ROC: 0.6421 | G-Mean: 0.5286
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): -0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529 0.4254 0.2838 0.4466 0.3214]
+
+--- Training on Task 8 (Timesteps: 36 to 40) ---
+🔧 Task 8 动态权重: 13.36 -> 截断为: 10.00
+   -> Focal Loss Alpha: 0.9091
+📉 Snapshot 节点数: 19831 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
+*** CL Metrics @ Task 8 ***
+  [Accuracy]  Avg F1: 0.2862 | AUC-ROC: 0.6480 | G-Mean: 0.5255
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): -0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529 0.4254 0.2838 0.4466 0.3214 0.1759]
+
+--- Training on Task 9 (Timesteps: 41 to 45) ---
+🔧 Task 9 动态权重: 17.19 -> 截断为: 10.00
+   -> Focal Loss Alpha: 0.9091
+📉 Snapshot 节点数: 28118 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
+*** CL Metrics @ Task 9 ***
+  [Accuracy]  Avg F1: 0.2668 | AUC-ROC: 0.6428 | G-Mean: 0.5048
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): -0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529 0.4254 0.2838 0.4466 0.3214 0.1759 0.1115]
+
+--- Training on Task 10 (Timesteps: 46 to 49) ---
+🔧 Task 10 动态权重: 21.89 -> 截断为: 10.00
+   -> Focal Loss Alpha: 0.9091
+📉 Snapshot 节点数: 14048 (仅当前任务)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
+*** CL Metrics @ Task 10 ***
+  [Accuracy]  Avg F1: 0.2526 | AUC-ROC: 0.6528 | G-Mean: 0.4900
+  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): -0.0000
+  > Matrix Row:  [0.0323 0.2513 0.3529 0.4254 0.2838 0.4466 0.3214 0.1759 0.1115 0.1254]
+All tasks trained.
+Total time: 24.30s
