@@ -86,6 +86,7 @@ run_experiment "configs/fraud_sota/elliptic_Naive_HOGRL.yaml"
 run_experiment "configs/fraud_sota/elliptic_Naive_CGNN.yaml"
 run_experiment "configs/fraud_sota/elliptic_Naive_ConsisGAD.yaml"
 run_experiment "configs/fraud_sota/elliptic_Naive_Grad.yaml"
+run_experiment "configs/fraud_sota/elliptic_Naive_PMP.yaml"
 run_experiment "configs/fraud_sota/elliptic_Naive_BSL.yaml"
 
 echo ""; echo "  ── [E] TASD-CL (Ours) ────────────────────────────────"
