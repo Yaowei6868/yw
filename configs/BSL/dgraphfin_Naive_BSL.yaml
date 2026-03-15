@@ -1,0 +1,42 @@
+name: dgraphfin_Naive_BSL
+
+dataset:
+  root: "data/dgraphfin"
+
+model:
+  # hidden_dim 必须能被 3 整除 (BSL 特征解耦要求)
+  hidden_dim: 96
+  output_dim: 1
+  dropout: 0.5
+  num_heads: 4
+  num_layers: 2
+
+train:
+  dataset: dgraphfin
+  model: bsl
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/bsl/dgraphfin_Naive_BSL
+
+  num_epochs_per_task: 20
+  task_schedule:
+    - [0]
+    - [1]
+    - [2]
+    - [3]
+    - [4]
+    - [5]
+    - [6]
+    - [7]
+    - [8]
+    - [9]
+
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0
+  spc_lambda: 0.0
+  scd_lambda: 0.0
+  scd_tau: 0.5

@@ -4,7 +4,89 @@ import matplotlib.pyplot as plt
 import torch
 import os
 from torch_geometric.data import Data, InMemoryDataset
+from torch_geometric.data import extract_zip
 from sklearn.model_selection import train_test_split
+
+
+class DGraphFinDataset(InMemoryDataset):
+    """
+    DGraphFin: 信也科技用户-用户紧急联系人图，用于金融欺诈检测。
+    论文: "DGraph: A Large-Scale Financial Dataset for Graph Anomaly Detection" (arxiv 2207.03579)
+
+    原始文件 DGraphFin.zip 需从 https://dgraph.xinye.com 手动下载，
+    放入 data/dgraphfin/raw/ 目录后运行即可自动处理。
+
+    数据统计:
+        节点数: 3,700,550  特征维度: 17  类别: 2 (0=正常, 1=欺诈)
+        边数:   4,300,999  边类型: 0-11  时间戳: 1-821
+    """
+    def __init__(self, root='data/dgraphfin', transform=None, pre_transform=None, num_tasks=10):
+        self.num_tasks = num_tasks
+        super(DGraphFinDataset, self).__init__(root, transform, pre_transform)
+        if os.path.exists(self.processed_paths[0]):
+            self.data, self.slices = torch.load(self.processed_paths[0], weights_only=False)
+        else:
+            print("⚠️ 注意: DGraphFin 预处理文件不存在，稍后将自动触发 process()。")
+
+    @property
+    def raw_file_names(self):
+        return ['DGraphFin.zip']
+
+    @property
+    def processed_file_names(self):
+        return ['dgraphfin_processed.pt']
+
+    def process(self):
+        print("正在处理 DGraphFin 数据集...")
+        zip_path = self.raw_paths[0]
+        if not os.path.exists(zip_path):
+            raise FileNotFoundError(
+                f"找不到原始文件 {zip_path}，"
+                f"请从 https://dgraph.xinye.com 下载 DGraphFin.zip 并放入 data/dgraphfin/raw/ 目录。"
+            )
+
+        extract_zip(zip_path, self.raw_dir, log=False)
+        npz_path = os.path.join(self.raw_dir, 'dgraphfin.npz')
+
+        with np.load(npz_path) as loader:
+            x = torch.from_numpy(loader['x']).float()
+            y_raw = torch.from_numpy(loader['y']).long()
+            edge_index = torch.from_numpy(loader['edge_index']).long().t().contiguous()
+            edge_time = torch.from_numpy(loader['edge_timestamp']).long()
+
+        num_nodes = x.size(0)
+        print(f"原始数据: {num_nodes} 节点, {edge_index.size(1)} 边")
+
+        # 标签重映射: 0→0(正常), 1→1(欺诈), 其他→-1(无标注背景节点)
+        y = torch.full((num_nodes,), -1, dtype=torch.long)
+        y[y_raw == 0] = 0
+        y[y_raw == 1] = 1
+        print(f"有标注节点: {(y != -1).sum().item()}  其中欺诈: {(y == 1).sum().item()}")
+
+        # 节点时间步: 取每个节点所有关联边中最小的 edge_time
+        # edge_time 范围 [1, 821]，映射到 [0, num_tasks-1]
+        node_time = torch.full((num_nodes,), 822, dtype=torch.long)
+        all_nodes = torch.cat([edge_index[0], edge_index[1]])
+        all_times = torch.cat([edge_time, edge_time])
+        node_time.scatter_reduce_(0, all_nodes, all_times, reduce='amin', include_self=True)
+
+        # 无边的孤立节点归入 task 0
+        node_time[node_time == 822] = 1
+
+        # 线性映射: [1, 821] -> [0, num_tasks-1]
+        timesteps = ((node_time - 1) * self.num_tasks // 821).clamp(0, self.num_tasks - 1)
+        print(f"时间步划分完成。Task 分布: {torch.bincount(timesteps)}")
+
+        data = Data(x=x, edge_index=edge_index, y=y)
+        data.timesteps = timesteps
+        data.classified_idx = torch.where(y != -1)[0]
+        data.unclassified_idx = torch.where(y == -1)[0]
+
+        if self.pre_transform is not None:
+            data = self.pre_transform(data)
+
+        torch.save(self.collate([data]), self.processed_paths[0])
+        print("✅ 处理完成！dgraphfin_processed.pt 已保存。")
 
 
 class EllipticPlusActorDataset(InMemoryDataset):

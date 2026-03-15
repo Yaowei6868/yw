@@ -25,7 +25,7 @@ from .models import (
     GAT, GCN, GIN, GraphSAGE, STAGNN, EvolveGCN, TGN, MLP,
     GATv2, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD, GraphSMOTE
 )
-from .datasets import EllipticDataset, EllipticPlusActorDataset
+from .datasets import EllipticDataset, EllipticPlusActorDataset, DGraphFinDataset
 from .buffer import ReplayBuffer, SubspacePrototypeBuffer
 
 # 在 trainer.py 顶部添加此类
@@ -103,6 +103,7 @@ models_map = {
 datasets_map = {
     "elliptic": EllipticDataset,
     "elliptic_actor": EllipticPlusActorDataset,
+    "dgraphfin": DGraphFinDataset,
 }
 
 
@@ -114,6 +115,10 @@ class Trainer:
         
         if self.config.train.dataset == 'elliptic_actor':
             self.dataset_obj = EllipticPlusActorDataset(root='data/elliptic++actor')
+            self.dataset = self.dataset_obj[0]
+        elif self.config.train.dataset == 'dgraphfin':
+            num_tasks = len(self.config.train.task_schedule)
+            self.dataset_obj = DGraphFinDataset(root='data/dgraphfin', num_tasks=num_tasks)
             self.dataset = self.dataset_obj[0]
         else:
             self.dataset_obj = datasets_map[self.config.train.dataset](config.dataset)

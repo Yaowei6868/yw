@@ -3,7 +3,7 @@
 ## 项目简介
 
 本项目是一个基于图神经网络（GNN）的欺诈检测基准框架，支持持续学习（Continual Learning）实验。
-数据集以比特币交易图（Elliptic、Elliptic++ Actor）和金融图（T-Finance）为主，
+数据集以比特币交易图（Elliptic、Elliptic++ Actor）为主，
 涵盖 GCN、GAT、HOGRL、CGNN、BSL、ConsisGAD、GradGNN、PMP 等多种模型。
 
 ---
@@ -19,25 +19,22 @@ claudclaud
 
 ## 安装依赖
 
-### 1. 安装支持 GPU 的 PyTorch（RTX 4090 对应 CUDA 12.x）
+### 1. 安装支持 GPU 的 PyTorch（RTX 3090 对应 CUDA 12.1）
 
 ```bash
-# 卸载 CPU 版本（如果已安装）
+# 卸载已有版本（如有）
 pip uninstall torch torchvision torchaudio -y
 
-# 安装 CUDA 12.1 版本（适用于 RTX 4090）
+# 安装 CUDA 12.1 版本（适用于 RTX 3090）
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
 
-> **注意**：当前环境安装的是 `torch 2.9.0+cpu`（纯 CPU 版），RTX 4090 无法被识别。
-> 必须重新安装 CUDA 版本才能启用 GPU 训练。
-
-### 2. 安装 PyG 及其他依赖
+### 2. 安装 PyG 及其扩展
 
 ```bash
 pip install torch_geometric
-pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv \
-    -f https://data.pyg.org/whl/torch-2.x.0+cu121.html
+pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
+    -f https://data.pyg.org/whl/torch-2.6.0+cu121.html
 
 pip install omegaconf scikit-learn pandas numpy matplotlib networkx tensorboard
 ```
@@ -46,7 +43,7 @@ pip install omegaconf scikit-learn pandas numpy matplotlib networkx tensorboard
 
 ```bash
 python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
-# 期望输出: True  /  NVIDIA GeForce RTX 4090
+# 期望输出: True  /  NVIDIA GeForce RTX 3090
 ```
 
 ---
@@ -87,7 +84,7 @@ python train.py --config configs/traditional/GAT/elliptic_CL_GAT.yaml
 |---|---|
 | `train.device` | 设置为 `cuda` 使用 GPU，`cpu` 使用 CPU |
 | `train.model` | 模型名称，如 `consisgad`、`bsl`、`hogrl`、`cgnn`、`grad`、`gcn`、`gat` 等 |
-| `train.dataset` | 数据集名称：`elliptic`、`elliptic_actor` |
+| `train.dataset` | 数据集名称：`elliptic`、`elliptic_actor`、`dgraphfin` |
 | `train.num_epochs_per_task` | 每个时间任务的训练轮数 |
 | `train.task_schedule` | 时间步划分列表，每项为 `[start, end]` |
 | `train.ewc_lambda` | EWC 正则化强度，0 表示关闭 |
@@ -106,6 +103,9 @@ data/
     elliptic_txs_classes.csv
   elliptic++actor/
     (InMemoryDataset 自动处理)
+  dgraphfin/
+    raw/DGraphFin.zip  (需从 https://dgraph.xinye.com 手动下载)
+    processed/         (首次运行后自动生成)
 ```
 
 ---
