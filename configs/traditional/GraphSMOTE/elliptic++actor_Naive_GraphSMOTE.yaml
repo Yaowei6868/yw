@@ -6,7 +6,7 @@ dataset:
 model:
   num_heads: 2
   input_dim: ???
-  hidden_dim: 64
+  hidden_dim: 128
   output_dim: 1
   dropout: 0.5
   up_scale: 1.0

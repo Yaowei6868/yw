@@ -14,7 +14,7 @@
 - PyTorch（**必须为 CUDA 版本**，详见下方安装说明）
 - torch_geometric
 - omegaconf、scikit-learn、pandas、numpy、matplotlib、networkx
-
+claudclaud
 ---
 
 ## 安装依赖
@@ -87,7 +87,7 @@ python train.py --config configs/traditional/GAT/elliptic_CL_GAT.yaml
 |---|---|
 | `train.device` | 设置为 `cuda` 使用 GPU，`cpu` 使用 CPU |
 | `train.model` | 模型名称，如 `consisgad`、`bsl`、`hogrl`、`cgnn`、`grad`、`gcn`、`gat` 等 |
-| `train.dataset` | 数据集名称：`elliptic`、`elliptic_actor`、`tfinance` |
+| `train.dataset` | 数据集名称：`elliptic`、`elliptic_actor` |
 | `train.num_epochs_per_task` | 每个时间任务的训练轮数 |
 | `train.task_schedule` | 时间步划分列表，每项为 `[start, end]` |
 | `train.ewc_lambda` | EWC 正则化强度，0 表示关闭 |
@@ -106,8 +106,6 @@ data/
     elliptic_txs_classes.csv
   elliptic++actor/
     (InMemoryDataset 自动处理)
-  tfinance/
-    raw/tfinance   (DGL 格式原始文件，需手动下载)
 ```
 
 ---

@@ -25,7 +25,7 @@ from .models import (
     GAT, GCN, GIN, GraphSAGE, STAGNN, EvolveGCN, TGN, MLP,
     GATv2, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD, GraphSMOTE
 )
-from .datasets import EllipticDataset, EllipticPlusActorDataset, TFinanceDataset
+from .datasets import EllipticDataset, EllipticPlusActorDataset
 from .buffer import ReplayBuffer, SubspacePrototypeBuffer
 
 # 在 trainer.py 顶部添加此类
@@ -100,11 +100,9 @@ models_map = {
     "graphsmote": GraphSMOTE,
 }
 
-# 【修改点 1】: 将 tfinance 注册到数据集映射表中
 datasets_map = {
     "elliptic": EllipticDataset,
     "elliptic_actor": EllipticPlusActorDataset,
-    "tfinance": TFinanceDataset
 }
 
 
@@ -114,17 +112,10 @@ class Trainer:
         self.config = config
         self.device = torch.device(config.train.device if torch.cuda.is_available() else "cpu")
         
-        # 【修改点 2】: 实例化数据集逻辑，增加 tfinance 分支并动态获取任务数
         if self.config.train.dataset == 'elliptic_actor':
             self.dataset_obj = EllipticPlusActorDataset(root='data/elliptic++actor')
             self.dataset = self.dataset_obj[0]
-        elif self.config.train.dataset == 'tfinance':
-            # 动态获取 yaml 中的任务数量 (task_schedule 的长度)，默认 10
-            num_tasks = len(self.config.train.task_schedule) if hasattr(self.config.train, 'task_schedule') else 10
-            self.dataset_obj = TFinanceDataset(root='data/tfinance', num_tasks=num_tasks)
-            self.dataset = self.dataset_obj[0]
         else:
-            # 兼容旧逻辑 (原版 Elliptic)
             self.dataset_obj = datasets_map[self.config.train.dataset](config.dataset)
             self.dataset = self.dataset_obj.pyg_dataset().to(self.device)
             
@@ -1016,7 +1007,6 @@ class Trainer:
         outputs = out_res.reshape((dataset.x.shape[0]))
         probs = torch.sigmoid(outputs).detach().cpu().numpy()
         
-        # 安全处理: 如果新数据集没有明确的 test_idx (如 tfinance)，直接返回全图预测
         if hasattr(dataset, 'test_idx'):
             preds = probs if labeled_only else probs[dataset.test_idx]
         else:
