@@ -1,0 +1,37 @@
+name: dgraphfin_LwF_GCN
+
+dataset:
+  root: "data/dgraphfin"
+
+model:
+  input_dim: ???
+  hidden_dim: 64
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: dgraphfin
+  model: gcn
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/gcn/dgraphfin_LwF_GCN
+
+  num_epochs_per_task: 30
+  task_schedule:
+    - [0]
+    - [1]
+    - [2]
+    - [3]
+    - [4]
+    - [5]
+    - [6]
+    - [7]
+    - [8]
+    - [9]
+
+  ewc_lambda: 0.0
+  lwf_alpha: 1.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0

@@ -1,0 +1,40 @@
+name: dgraphfin_CL_CGNN
+
+dataset:
+  root: "data/dgraphfin"
+
+model:
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+  num_heads: 1
+  num_layers: 1
+
+train:
+  dataset: dgraphfin
+  model: cgnn
+  device: cuda
+  lr: 0.001
+  weight_decay: 5e-4
+  print_freq: 10
+  save_dir: weights/cgnn/dgraphfin_CL_CGNN
+
+  num_epochs_per_task: 25
+  task_schedule:
+    - [0]
+    - [1]
+    - [2]
+    - [3]
+    - [4]
+    - [5]
+    - [6]
+    - [7]
+    - [8]
+    - [9]
+
+  buffer_size_per_class: 1000
+  ewc_lambda: 100
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  cgnn_lambda: 0.1
+  cgnn_beta: 0.1

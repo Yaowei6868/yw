@@ -1,0 +1,39 @@
+name: dgraphfin_CL_Grad
+
+dataset:
+  root: "data/dgraphfin"
+
+model:
+  input_dim: ???
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+  num_heads: 4
+  group_size: 32
+  diff_steps: 100
+  beta_order: 4
+
+train:
+  dataset: dgraphfin
+  model: grad
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/grad/dgraphfin_CL_Grad
+
+  num_epochs_per_task: 50
+  task_schedule:
+    - [0]
+    - [1]
+    - [2]
+    - [3]
+    - [4]
+    - [5]
+    - [6]
+    - [7]
+    - [8]
+    - [9]
+
+  ewc_lambda: 1
+  buffer_size_per_class: 500
