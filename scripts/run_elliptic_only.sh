@@ -5,7 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${SCRIPT_DIR}/logs"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+LOG_DIR="${ROOT_DIR}/logs"
 PYTHON="${PYTHON:-python}"
 NUM_TASKS=10
 COMPLETE_ROWS=$((NUM_TASKS + 1))
@@ -21,7 +22,7 @@ should_skip() {
     local exp_name save_dir csv_path
     exp_name=$(_yaml_field "$config_path" "name")
     save_dir=$(grep -m1 "save_dir:" "$config_path" | awk '{print $2}' | tr -d '"' | tr -d "'")
-    csv_path="${SCRIPT_DIR}/${save_dir}/metrics/${exp_name}_aggregate_metrics.csv"
+    csv_path="${ROOT_DIR}/${save_dir}/metrics/${exp_name}_aggregate_metrics.csv"
     if [[ -f "$csv_path" ]]; then
         local row_count
         row_count=$(wc -l < "$csv_path" 2>/dev/null || echo 0)
@@ -50,7 +51,7 @@ run_experiment() {
     printf  "  │ LOG: logs/%-44s│\n" "${exp_name}.log"
     echo "  └──────────────────────────────────────────────────────┘"
     t_start=$(date +%s)
-    cd "${SCRIPT_DIR}"
+    cd "${ROOT_DIR}"
     if ${PYTHON} train.py --config "${config_path}" > "${log_file}" 2>&1; then
         t_end=$(date +%s); elapsed=$(( t_end - t_start ))
         printf "  [DONE] %-44s %dm%02ds\n" "${exp_name}" $(( elapsed/60 )) $(( elapsed%60 ))

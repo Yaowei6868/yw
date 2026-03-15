@@ -26,7 +26,8 @@ set -euo pipefail
 # 基础配置
 # --------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${SCRIPT_DIR}/logs"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+LOG_DIR="${ROOT_DIR}/logs"
 PYTHON="${PYTHON:-python}"          # 可用 PYTHON=python3 bash run_all_experiments.sh 覆盖
 NUM_TASKS=10                        # Elliptic / Elliptic++Actor 均为 10 个任务
 COMPLETE_ROWS=$((NUM_TASKS + 1))    # CSV 行数: 1 表头 + 10 数据行
@@ -59,7 +60,7 @@ should_skip() {
     save_dir=$(grep -m1 "save_dir:" "$config_path" | awk '{print $2}' | tr -d '"' | tr -d "'")
 
     # 路径处理: save_dir 可能是相对路径
-    local csv_path="${SCRIPT_DIR}/${save_dir}/metrics/${exp_name}_aggregate_metrics.csv"
+    local csv_path="${ROOT_DIR}/${save_dir}/metrics/${exp_name}_aggregate_metrics.csv"
 
     if [[ -f "$csv_path" ]]; then
         local row_count
@@ -96,7 +97,7 @@ run_experiment() {
     t_start=$(date +%s)
 
     # 运行实验，stdout+stderr 均写入独立日志文件
-    cd "${SCRIPT_DIR}"
+    cd "${ROOT_DIR}"
     if ${PYTHON} train.py --config "${config_path}" > "${log_file}" 2>&1; then
         local t_end elapsed
         t_end=$(date +%s)
