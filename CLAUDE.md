@@ -3,8 +3,8 @@
 ## 项目简介
 
 本项目是一个基于图神经网络（GNN）的欺诈检测基准框架，支持持续学习（Continual Learning）实验。
-数据集以比特币交易图（Elliptic、Elliptic++ Actor）为主，
-涵盖 GCN、GAT、HOGRL、CGNN、BSL、ConsisGAD、GradGNN、PMP 等多种模型。
+数据集涵盖 Elliptic、Elliptic++ Actor、DGraphFin 三个金融图数据集，
+支持 GCN、GAT、HOGRL、CGNN、BSL、ConsisGAD、GradGNN、PMP 等多种模型。
 
 ---
 
@@ -14,7 +14,6 @@
 - PyTorch（**必须为 CUDA 版本**，详见下方安装说明）
 - torch_geometric
 - omegaconf、scikit-learn、pandas、numpy、matplotlib、networkx
-claudclaud
 ---
 
 ## 安装依赖
@@ -50,33 +49,29 @@ python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_
 
 ## 训练
 
-### 基本命令
+### 单个实验
 
 ```bash
 python train.py --config configs/<模型目录>/<配置文件>.yaml
 ```
 
-### 示例
+### 批量运行脚本（位于 scripts/ 目录）
 
 ```bash
-# ConsisGAD (Naive，无持续学习策略)
-python train.py --config configs/ConsisGAD/elliptic_Naive_ConsisGAD.yaml
+# 全部三个数据集
+nohup bash scripts/run_all_experiments.sh > logs/main.log 2>&1 &
 
-# BSL (Naive)
-python train.py --config configs/BSL/elliptic_Naive_BSL.yaml
+# 仅 Elliptic
+nohup bash scripts/run_elliptic_only.sh > logs/elliptic_main.log 2>&1 &
 
-# HOGRL (Naive)
-python train.py --config configs/HOGRL/elliptic_Naive_HOGRL.yaml
+# 仅 Elliptic++ Actor
+nohup bash scripts/run_elliptic_actor_only.sh > logs/elliptic_actor_main.log 2>&1 &
 
-# CGNN (Naive)
-python train.py --config configs/CGNN/elliptic_Naive_CGNN.yaml
-
-# GradGNN (Naive)
-python train.py --config configs/Grad/elliptic_Naive_Grad.yaml
-
-# GAT (CL，使用 EWC 策略)
-python train.py --config configs/traditional/GAT/elliptic_CL_GAT.yaml
+# 仅 DGraphFin
+nohup bash scripts/run_dgraph_only.sh > logs/dgraph_main.log 2>&1 &
 ```
+
+> 脚本支持断点续跑：检测到结果 CSV 已完整时自动跳过对应实验。
 
 ### 配置文件说明
 
@@ -120,6 +115,13 @@ data/
 
 ```bash
 tensorboard --logdir runs/
+```
+
+### 结果汇总工具（位于 tools/ 目录）
+
+```bash
+python tools/collect_results.py    # 汇总所有实验指标到 results_summary.csv
+python tools/analyze_results.py    # 分析和可视化结果
 ```
 
 ---
