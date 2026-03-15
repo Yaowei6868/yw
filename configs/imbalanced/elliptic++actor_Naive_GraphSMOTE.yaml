@@ -4,12 +4,9 @@ dataset:
   root: "data/elliptic++actor"
 
 model:
-  num_heads: 2
-  input_dim: ???
   hidden_dim: 128
   output_dim: 1
   dropout: 0.5
-  up_scale: 1.0
 
 train:
   dataset: elliptic_actor
@@ -18,7 +15,7 @@ train:
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/GraphSMOTE/elliptic_actor_Naive_GraphSMOTE
+  save_dir: weights/graphsmote/elliptic_actor_Naive_GraphSMOTE
 
   num_epochs_per_task: 30
   task_schedule:
@@ -33,7 +30,13 @@ train:
     - [8]
     - [9]
 
+  smote_k: 5
+  smote_lambda: 0.5
+
   ewc_lambda: 0.0
   lwf_alpha: 0.0
   lwf_temperature: 1.0
   buffer_size_per_class: 0
+  spc_lambda: 0.0
+  scd_lambda: 0.0
+  scd_tau: 0.5

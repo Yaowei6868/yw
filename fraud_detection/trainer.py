@@ -876,24 +876,34 @@ class Trainer:
                     if self.config.train.model == 'pmp':
                         pmp_mask = torch.zeros(self.dataset.num_nodes, dtype=torch.bool, device=self.device)
                         pmp_mask[current_train_idx] = True
-                        self.dataset.pmp_mask = pmp_mask 
+                        self.dataset.pmp_mask = pmp_mask
+
+                    if self.config.train.model == 'graphsmote':
+                        snapshot_data.smote_train_idx = current_train_idx
 
                     z_all = None; alpha_all = None
-                    
+                    smote_loss = torch.tensor(0.0, device=self.device)
+
                     if self.config.train.model == 'cgnn':
                         outputs, x_nor, x_abnor = self.model(snapshot_data, return_decomposed=True)
                     elif self.config.train.model == 'bsl':
                          outputs, z_all, alpha_all = self.model(snapshot_data, return_stats=True)
+                    elif self.config.train.model == 'graphsmote':
+                        out_res = self.model(snapshot_data)
+                        if isinstance(out_res, tuple):
+                            outputs, smote_loss = out_res
+                        else:
+                            outputs = out_res
                     else:
                         out_res = self.model(snapshot_data)
                         if isinstance(out_res, tuple): outputs = out_res[0]
                         else: outputs = out_res
-                    
+
                     outputs = outputs.reshape((self.dataset.x.shape[0]))
                     task_y = self.dataset.y[current_train_idx.cpu()].float().to(self.device).reshape(-1, 1)
-                    
+
                     task_loss = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
-                    
+
                     bsl_loss, cl_loss, cgnn_loss = 0.0, 0.0, 0.0
                     spc_loss = torch.tensor(0.0, device=self.device)  # [TASD-CL]
 
@@ -961,8 +971,10 @@ class Trainer:
                                 ).sum()
                         cl_loss += self.ewc_lambda * ewc_term
 
+                    w_smote = self.config.train.get('smote_lambda', 0.5)
                     total_loss = task_loss + cl_loss + bsl_loss + cgnn_loss \
-                                 + self.spc_lambda * spc_loss
+                                 + self.spc_lambda * spc_loss \
+                                 + w_smote * smote_loss
                 
                     total_loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)

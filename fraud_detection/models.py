@@ -146,24 +146,96 @@ class MLP(nn.Module):
 
 # --- GraphSMOTE ---
 class GraphSMOTE(nn.Module):
+    """
+    GraphSMOTE: Imbalanced Node Classification on Graphs with Graph Neural Networks
+    WSDM 2021 - Zhao et al.
+
+    核心思路:
+      1. GCN 编码器获取全图节点嵌入 z
+      2. 对训练集中的少数类（欺诈=1）节点，在嵌入空间做 SMOTE 插值合成新样本:
+           z_syn = z_i + δ * (z_j - z_i),  j ∈ KNN(i), δ ~ U(0,1)
+      3. 对合成样本预测标签（均为 fraud=1），构成辅助损失 L_smote
+      4. 总损失 = L_cls(真实节点) + λ * L_smote(合成节点)
+
+    Trainer 使用方式:
+      训练前设置 snapshot_data.smote_train_idx = current_train_idx
+      forward 返回 (logits, smote_loss) 用于合并损失
+    """
     def __init__(self, config):
         super(GraphSMOTE, self).__init__()
-        self.config = config
         self.input_dim = config.input_dim
         self.hidden_dim = config.hidden_dim
         self.output_dim = config.output_dim
         self.dropout = config.dropout
-        
-        self.encoder = GCNConv(self.input_dim, self.hidden_dim)
-        self.classifier = GCNConv(self.hidden_dim, self.output_dim)
+        self.k = config.get('smote_k', 5)  # KNN 邻居数
+
+        # GCN 编码器: 两层，提取结构感知嵌入
+        self.conv1 = GCNConv(self.input_dim, self.hidden_dim)
+        self.conv2 = GCNConv(self.hidden_dim, self.hidden_dim)
+        # 线性分类器
+        self.classifier = nn.Linear(self.hidden_dim, self.output_dim)
+
+    def encode(self, x, edge_index):
+        h = F.relu(self.conv1(x, edge_index))
+        h = F.dropout(h, p=self.dropout, training=self.training)
+        h = self.conv2(h, edge_index)
+        return h
+
+    def _smote_interpolate(self, z_min):
+        """
+        在嵌入空间做 SMOTE 插值。
+        z_min: [M, D] 少数类节点嵌入（带梯度）
+        返回: [M, D] 合成嵌入（带梯度，用于反传）
+        """
+        n = z_min.size(0)
+        k = min(self.k, n - 1)
+
+        # 用 detach 计算距离索引，避免二次图
+        with torch.no_grad():
+            dist = torch.cdist(z_min.float(), z_min.float())
+            dist.fill_diagonal_(float('inf'))
+            _, knn_idx = torch.topk(dist, k, dim=1, largest=False)  # [M, k]
+            rand_pos = torch.randint(0, k, (n,), device=z_min.device)
+            neighbor_idx = knn_idx[torch.arange(n, device=z_min.device), rand_pos]  # [M]
+            delta = torch.rand(n, 1, device=z_min.device, dtype=z_min.dtype)
+
+        # 插值（用原始 z_min，梯度可回传到编码器）
+        z_neighbors = z_min[neighbor_idx]
+        z_synthetic = z_min + delta * (z_neighbors - z_min)
+        return z_synthetic
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
-        z = self.encoder(x, edge_index)
-        z = F.relu(z)
-        z = F.dropout(z, p=self.dropout, training=self.training)
-        out = self.classifier(z, edge_index)
-        return out
+
+        # 1. 编码所有节点
+        z = self.encode(x, edge_index)
+        out = self.classifier(z)
+
+        # 推理阶段直接返回
+        if not self.training:
+            return out
+
+        # 2. 训练阶段：SMOTE 过采样少数类
+        train_idx = getattr(data, 'smote_train_idx', None)
+        if train_idx is None:
+            return out
+
+        y = data.y
+        minority_idx = train_idx[(y[train_idx] == 1)]
+
+        if minority_idx.numel() < 2:
+            return out, torch.tensor(0.0, device=x.device)
+
+        # 3. 在嵌入空间插值合成新样本
+        z_min = z[minority_idx]  # [M, D], 带梯度
+        z_synthetic = self._smote_interpolate(z_min)
+
+        # 4. 对合成样本计算辅助损失（全部为 fraud=1）
+        out_syn = self.classifier(z_synthetic)
+        y_syn = torch.ones(z_synthetic.size(0), 1, device=x.device)
+        smote_loss = F.binary_cross_entropy_with_logits(out_syn, y_syn)
+
+        return out, smote_loss
 class DQNAgent(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(DQNAgent, self).__init__()

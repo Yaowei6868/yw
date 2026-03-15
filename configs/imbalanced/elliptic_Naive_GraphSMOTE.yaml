@@ -1,42 +1,44 @@
-name: elliptic_Naive_GraphSMOTE    
+name: elliptic_Naive_GraphSMOTE
+
 dataset:
   features_path: "data/elliptic/elliptic_txs_features.csv"
   edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
   classes: "data/elliptic/elliptic_txs_classes.csv"
 
 model:
-  num_heads: 2
-  input_dim: ???
   hidden_dim: 128
   output_dim: 1
   dropout: 0.5
-  up_scale: 4.0
 
 train:
   dataset: elliptic
   model: graphsmote
   device: cuda
-  lr: 0.0005
+  lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/GraphSMOTE/
-  
+  save_dir: weights/graphsmote/elliptic_Naive_GraphSMOTE
 
-  num_epochs_per_task: 100
-  task_schedule: 
-    - [1, 5]
-    - [6, 10]
-    - [11, 15]
-    - [16, 20]
-    - [21, 25]
-    - [26, 30]
-    - [31, 35]
-    - [36, 40]
-    - [41, 45]
-    - [46, 49]
-    
+  num_epochs_per_task: 30
+  task_schedule:
+    - [1]
+    - [2]
+    - [3]
+    - [4]
+    - [5]
+    - [6]
+    - [7]
+    - [8]
+    - [9]
+    - [10]
+
+  smote_k: 5          # KNN 邻居数 (SMOTE 插值)
+  smote_lambda: 0.5   # 合成样本辅助损失权重
 
   ewc_lambda: 0.0
   lwf_alpha: 0.0
   lwf_temperature: 1.0
-  buffer_size_per_class: 0        
+  buffer_size_per_class: 0
+  spc_lambda: 0.0
+  scd_lambda: 0.0
+  scd_tau: 0.5
