@@ -142,28 +142,28 @@ echo "║  DATASET 1/3 — Elliptic                                  ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 section "[A] 传统静态基线 (Sequential Fine-Tuning)"
-run_experiment "configs/traditional/GCN/elliptic_Naive_GCN.yaml"
-run_experiment "configs/traditional/GAT/elliptic_Naive_GAT.yaml"
+run_experiment "configs/traditional/elliptic_Naive_GCN.yaml"
+run_experiment "configs/traditional/elliptic_Naive_GAT.yaml"
 
 section "[B] 持续学习经典基线 (CL Baselines)"
-run_experiment "configs/traditional/GCN/elliptic_EWC_GCN.yaml"
-run_experiment "configs/traditional/GCN/elliptic_LwF_GCN.yaml"
-run_experiment "configs/traditional/GCN/elliptic_CL_GCN.yaml"        # ER-GNN (AAAI'21)
+run_experiment "configs/cl_baselines/elliptic_EWC_GCN.yaml"
+run_experiment "configs/cl_baselines/elliptic_LwF_GCN.yaml"
+run_experiment "configs/cl_baselines/elliptic_CL_GCN.yaml"        # ER-GNN (AAAI'21)
 
 section "[C] 不平衡处理变体 (Imbalance Handling)"
 # 注: GraphSMOTE 此处使用 GCN+GCNConv 骨架 + 动态 Focal Loss
 # 与原版 SMOTE 过采样有区别，详见 models.py GraphSMOTE 类说明
-run_experiment "configs/traditional/GraphSMOTE/elliptic_Naive_GraphSMOTE.yaml"
+run_experiment "configs/imbalanced/elliptic_Naive_GraphSMOTE.yaml"
 
 section "[D] 核心 SOTA 欺诈检测模型 (2024-2025)"
-run_experiment "configs/HOGRL/elliptic_Naive_HOGRL.yaml"              # IJCAI'24
-run_experiment "configs/CGNN/elliptic_Naive_CGNN.yaml"                # AAAI'25
-run_experiment "configs/ConsisGAD/elliptic_Naive_ConsisGAD.yaml"      # ICLR'24
-run_experiment "configs/Grad/elliptic_Naive_Grad.yaml"                # WWW'25
-run_experiment "configs/BSL/elliptic_Naive_BSL.yaml"                  # AAAI'24 (Sequential)
+run_experiment "configs/fraud_sota/elliptic_Naive_HOGRL.yaml"              # IJCAI'24
+run_experiment "configs/fraud_sota/elliptic_Naive_CGNN.yaml"                # AAAI'25
+run_experiment "configs/fraud_sota/elliptic_Naive_ConsisGAD.yaml"      # ICLR'24
+run_experiment "configs/fraud_sota/elliptic_Naive_Grad.yaml"                # WWW'25
+run_experiment "configs/fraud_sota/elliptic_Naive_BSL.yaml"                  # AAAI'24 (Sequential)
 
 section "[E] 我们的方法"
-run_experiment "configs/BSL/elliptic_TASDCL_BSL.yaml"                 # TASD-CL (Ours)
+run_experiment "configs/ours/main/elliptic_TASDCL_BSL.yaml"                 # TASD-CL (Ours)
 
 # ======================================================================
 # ★ PART 2: Elliptic++ Actor Dataset
@@ -174,35 +174,30 @@ echo "║  DATASET 2/3 — Elliptic++ Actor                          ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 section "[A] 传统静态基线"
-run_experiment "configs/traditional/GCN/elliptic++actor_Naive_GCN.yaml"
-run_experiment "configs/traditional/GAT/elliptic++actor_Naive_GAT.yaml"
+run_experiment "configs/traditional/elliptic++actor_Naive_GCN.yaml"
+run_experiment "configs/traditional/elliptic++actor_Naive_GAT.yaml"
 
 section "[B] 持续学习经典基线"
-run_experiment "configs/traditional/GCN/elliptic++actor_EWC_GCN.yaml"
-run_experiment "configs/traditional/GCN/elliptic++actor_LwF_GCN.yaml"
-run_experiment "configs/traditional/GCN/elliptic++actor_ER_GCN.yaml"  # ER-GNN
+run_experiment "configs/cl_baselines/elliptic++actor_EWC_GCN.yaml"
+run_experiment "configs/cl_baselines/elliptic++actor_LwF_GCN.yaml"
+run_experiment "configs/cl_baselines/elliptic++actor_ER_GCN.yaml"  # ER-GNN
 
 section "[C] 不平衡处理变体"
-run_experiment "configs/traditional/GraphSMOTE/elliptic++actor_Naive_GraphSMOTE.yaml"
+run_experiment "configs/imbalanced/elliptic++actor_Naive_GraphSMOTE.yaml"
 
 section "[D] 核心 SOTA 欺诈检测模型"
-run_experiment "configs/HOGRL/elliptic++actor_Naive_HOGRL.yaml"
-run_experiment "configs/HOGRL/elliptic++actor_CL_HOGRL.yaml"
-run_experiment "configs/CGNN/elliptic++actor_Naive_CGNN.yaml"
-run_experiment "configs/CGNN/elliptic++actor_CL_CGNN.yaml"
-run_experiment "configs/ConsisGAD/elliptic++actor_Naive_ConsisGAD.yaml"
-run_experiment "configs/ConsisGAD/elliptic++actor_CL_ConsisGAD.yaml"
-run_experiment "configs/Grad/elliptic++actor_Naive_Grad.yaml"
-run_experiment "configs/Grad/elliptic++actor_CL_Grad.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor_Naive_HOGRL.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor_Naive_CGNN.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor_Naive_ConsisGAD.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor_Naive_Grad.yaml"
 run_experiment "configs/PMP/elliptic++actor_Naive_PMP.yaml"
 run_experiment "configs/PMP/elliptic++actor_CL_PMP.yaml"
-run_experiment "configs/BSL/elliptic++actor_Naive_BSL.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor_Naive_BSL.yaml"
 
 section "[E] BSL CL 策略对比"
-run_experiment "configs/BSL/elliptic++actor_CL_BSL.yaml"
 
 section "[F] 我们的方法 + 消融"
-run_experiment "configs/BSL/elliptic++actor_TASDCL_BSL.yaml"
+run_experiment "configs/ours/main/elliptic++actor_TASDCL_BSL.yaml"
 
 # ======================================================================
 # ★ PART 3: DGraphFin Dataset
@@ -213,40 +208,36 @@ echo "║  DATASET 3/3 — DGraphFin                                 ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 section "[A] 传统静态基线"
-run_experiment "configs/traditional/GCN/dgraphfin_Naive_GCN.yaml"
-run_experiment "configs/traditional/GAT/dgraphfin_Naive_GAT.yaml"
+run_experiment "configs/traditional/dgraphfin_Naive_GCN.yaml"
+run_experiment "configs/traditional/dgraphfin_Naive_GAT.yaml"
 
 section "[B] 持续学习经典基线"
-run_experiment "configs/traditional/GCN/dgraphfin_EWC_GCN.yaml"
-run_experiment "configs/traditional/GCN/dgraphfin_LwF_GCN.yaml"
-run_experiment "configs/traditional/GCN/dgraphfin_ER_GCN.yaml"
+run_experiment "configs/cl_baselines/dgraphfin_EWC_GCN.yaml"
+run_experiment "configs/cl_baselines/dgraphfin_LwF_GCN.yaml"
+run_experiment "configs/cl_baselines/dgraphfin_ER_GCN.yaml"
 
 section "[C] 不平衡处理变体"
-run_experiment "configs/traditional/GraphSMOTE/dgraphfin_Naive_GraphSMOTE.yaml"
+run_experiment "configs/imbalanced/dgraphfin_Naive_GraphSMOTE.yaml"
 
 section "[D] 核心 SOTA 欺诈检测模型"
-run_experiment "configs/HOGRL/dgraphfin_Naive_HOGRL.yaml"
-run_experiment "configs/HOGRL/dgraphfin_CL_HOGRL.yaml"
-run_experiment "configs/CGNN/dgraphfin_Naive_CGNN.yaml"
-run_experiment "configs/CGNN/dgraphfin_CL_CGNN.yaml"
-run_experiment "configs/ConsisGAD/dgraphfin_Naive_ConsisGAD.yaml"
-run_experiment "configs/ConsisGAD/dgraphfin_CL_ConsisGAD.yaml"
-run_experiment "configs/Grad/dgraphfin_Naive_Grad.yaml"
-run_experiment "configs/Grad/dgraphfin_CL_Grad.yaml"
+run_experiment "configs/fraud_sota/dgraphfin_Naive_HOGRL.yaml"
+run_experiment "configs/fraud_sota/dgraphfin_Naive_CGNN.yaml"
+run_experiment "configs/fraud_sota/dgraphfin_Naive_ConsisGAD.yaml"
+run_experiment "configs/fraud_sota/dgraphfin_Naive_Grad.yaml"
 run_experiment "configs/PMP/dgraphfin_Naive_PMP.yaml"
 run_experiment "configs/PMP/dgraphfin_CL_PMP.yaml"
-run_experiment "configs/BSL/dgraphfin_Naive_BSL.yaml"
+run_experiment "configs/fraud_sota/dgraphfin_Naive_BSL.yaml"
 
 section "[E] BSL CL 策略对比"
-run_experiment "configs/BSL/dgraphfin_EWC_BSL.yaml"
-run_experiment "configs/BSL/dgraphfin_LwF_BSL.yaml"
-run_experiment "configs/BSL/dgraphfin_ER_BSL.yaml"
+run_experiment "configs/ours/cl_on_bsl/dgraphfin_EWC_BSL.yaml"
+run_experiment "configs/ours/cl_on_bsl/dgraphfin_LwF_BSL.yaml"
+run_experiment "configs/ours/cl_on_bsl/dgraphfin_ER_BSL.yaml"
 
 section "[F] 我们的方法 + 消融"
-run_experiment "configs/BSL/dgraphfin_TASDCL_noSSF_BSL.yaml"
-run_experiment "configs/BSL/dgraphfin_TASDCL_noSPC_BSL.yaml"
-run_experiment "configs/BSL/dgraphfin_TASDCL_noSCD_BSL.yaml"
-run_experiment "configs/BSL/dgraphfin_TASDCL_BSL.yaml"
+run_experiment "configs/ours/ablation/dgraphfin_TASDCL_noSSF_BSL.yaml"
+run_experiment "configs/ours/ablation/dgraphfin_TASDCL_noSPC_BSL.yaml"
+run_experiment "configs/ours/ablation/dgraphfin_TASDCL_noSCD_BSL.yaml"
+run_experiment "configs/ours/main/dgraphfin_TASDCL_BSL.yaml"
 
 # ======================================================================
 # 汇总

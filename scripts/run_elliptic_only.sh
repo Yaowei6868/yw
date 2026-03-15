@@ -69,26 +69,26 @@ echo "║  $(date '+%Y-%m-%d %H:%M:%S')                           ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 echo ""; echo "  ── [A] 传统静态基线 ─────────────────────────────────"
-run_experiment "configs/traditional/GCN/elliptic_Naive_GCN.yaml"
-run_experiment "configs/traditional/GAT/elliptic_Naive_GAT.yaml"
+run_experiment "configs/traditional/elliptic_Naive_GCN.yaml"
+run_experiment "configs/traditional/elliptic_Naive_GAT.yaml"
 
 echo ""; echo "  ── [B] CL 经典基线 ───────────────────────────────────"
-run_experiment "configs/traditional/GCN/elliptic_EWC_GCN.yaml"
-run_experiment "configs/traditional/GCN/elliptic_LwF_GCN.yaml"
-run_experiment "configs/traditional/GCN/elliptic_CL_GCN.yaml"
+run_experiment "configs/cl_baselines/elliptic_EWC_GCN.yaml"
+run_experiment "configs/cl_baselines/elliptic_LwF_GCN.yaml"
+run_experiment "configs/cl_baselines/elliptic_CL_GCN.yaml"
 
 echo ""; echo "  ── [C] 不平衡处理变体 ────────────────────────────────"
-run_experiment "configs/traditional/GraphSMOTE/elliptic_Naive_GraphSMOTE.yaml"
+run_experiment "configs/imbalanced/elliptic_Naive_GraphSMOTE.yaml"
 
 echo ""; echo "  ── [D] 核心 SOTA ─────────────────────────────────────"
-run_experiment "configs/HOGRL/elliptic_Naive_HOGRL.yaml"
-run_experiment "configs/CGNN/elliptic_Naive_CGNN.yaml"
-run_experiment "configs/ConsisGAD/elliptic_Naive_ConsisGAD.yaml"
-run_experiment "configs/Grad/elliptic_Naive_Grad.yaml"
-run_experiment "configs/BSL/elliptic_Naive_BSL.yaml"
+run_experiment "configs/fraud_sota/elliptic_Naive_HOGRL.yaml"
+run_experiment "configs/fraud_sota/elliptic_Naive_CGNN.yaml"
+run_experiment "configs/fraud_sota/elliptic_Naive_ConsisGAD.yaml"
+run_experiment "configs/fraud_sota/elliptic_Naive_Grad.yaml"
+run_experiment "configs/fraud_sota/elliptic_Naive_BSL.yaml"
 
 echo ""; echo "  ── [E] TASD-CL (Ours) ────────────────────────────────"
-run_experiment "configs/BSL/elliptic_TASDCL_BSL.yaml"
+run_experiment "configs/ours/main/elliptic_TASDCL_BSL.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""
