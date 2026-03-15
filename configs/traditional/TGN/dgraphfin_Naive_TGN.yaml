@@ -1,25 +1,25 @@
-name: dgraphfin_CL_CGNN
+name: dgraphfin_Naive_TGN
 
 dataset:
   root: "data/dgraphfin"
 
 model:
-  hidden_dim: 128
+  num_heads: 2
+  input_dim: ???
+  hidden_dim: 64
   output_dim: 1
   dropout: 0.5
-  num_heads: 1
-  num_layers: 1
 
 train:
   dataset: dgraphfin
-  model: cgnn
+  model: tgn
   device: cuda
   lr: 0.001
-  weight_decay: 5e-4
+  weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/cgnn/dgraphfin_CL_CGNN
+  save_dir: weights/tgn/dgraphfin_Naive_TGN
 
-  num_epochs_per_task: 25
+  num_epochs_per_task: 50
   task_schedule:
     - [0]
     - [1]
@@ -32,9 +32,7 @@ train:
     - [8]
     - [9]
 
-  buffer_size_per_class: 1000
-  ewc_lambda: 100
+  ewc_lambda: 0.0
   lwf_alpha: 0.0
   lwf_temperature: 1.0
-  cgnn_lambda: 0.1
-  cgnn_beta: 0.1
+  buffer_size_per_class: 0

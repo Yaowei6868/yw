@@ -1,26 +1,26 @@
-name: elliptic_actor_CL_ConsisGAD
+name: elliptic_actor_TASDCL_noSSF_BSL
 
 dataset:
   root: "data/elliptic++actor"
 
 model:
-  input_dim: 166
-  hidden_dim: 64        # 论文推荐 64
+  input_dim: ???
+  hidden_dim: 96
   output_dim: 1
-  dropout: 0.5
-  aug_drop_ratio: 0.2   # [Paper] drop ratio xi (0.1 ~ 0.3)
+  dropout: 0.3
+  num_heads: 4
+  num_layers: 2
 
 train:
   dataset: elliptic_actor
-  model: consisgad
+  model: bsl
   device: cuda
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/consisgad/elliptic_actor_CL_ConsisGAD 
-  
+  save_dir: weights/bsl/elliptic_actor_TASDCL_noSSF_BSL
+
   num_epochs_per_task: 30
-  
   task_schedule:
     - [0]
     - [1]
@@ -33,6 +33,11 @@ train:
     - [8]
     - [9]
 
-  # Naive Mode
   ewc_lambda: 0.0
+  spc_lambda: 0.5
+  spc_n_samples: 32
+  scd_lambda: 0.3
+  scd_tau: 0.5
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
   buffer_size_per_class: 0

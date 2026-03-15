@@ -1,23 +1,23 @@
-name: dgraphfin_CL_ConsisGAD
+name: elliptic_actor_EWC_BSL
 
 dataset:
-  root: "data/dgraphfin"
+  root: "data/elliptic++actor"
 
 model:
-  input_dim: ???
-  hidden_dim: 64
+  hidden_dim: 96
   output_dim: 1
   dropout: 0.5
-  aug_drop_ratio: 0.2
+  num_heads: 4
+  num_layers: 2
 
 train:
-  dataset: dgraphfin
-  model: consisgad
+  dataset: elliptic_actor
+  model: bsl
   device: cuda
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/consisgad/dgraphfin_CL_ConsisGAD
+  save_dir: weights/bsl/elliptic_actor_EWC_BSL
 
   num_epochs_per_task: 30
   task_schedule:
@@ -32,5 +32,9 @@ train:
     - [8]
     - [9]
 
-  ewc_lambda: 0.0
+  ewc_lambda: 0.5
+  spc_lambda: 0.0
+  scd_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
   buffer_size_per_class: 0

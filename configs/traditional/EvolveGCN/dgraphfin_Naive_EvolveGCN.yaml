@@ -1,26 +1,23 @@
-name: dgraphfin_CL_Grad
+name: dgraphfin_Naive_EvolveGCN
 
 dataset:
   root: "data/dgraphfin"
 
 model:
+  num_heads: 0
   input_dim: ???
-  hidden_dim: 128
+  hidden_dim: 64
   output_dim: 1
   dropout: 0.5
-  num_heads: 4
-  group_size: 32
-  diff_steps: 100
-  beta_order: 4
 
 train:
   dataset: dgraphfin
-  model: grad
+  model: evolvegcn
   device: cuda
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/grad/dgraphfin_CL_Grad
+  save_dir: weights/evolvegcn/dgraphfin_Naive_EvolveGCN
 
   num_epochs_per_task: 50
   task_schedule:
@@ -35,5 +32,7 @@ train:
     - [8]
     - [9]
 
-  ewc_lambda: 1
-  buffer_size_per_class: 500
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0
