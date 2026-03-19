@@ -12,6 +12,7 @@ from sklearn.metrics import (
     confusion_matrix,
     roc_auc_score,
     average_precision_score,
+    matthews_corrcoef,
 )
 from sklearn.model_selection import train_test_split
 import copy 
@@ -216,18 +217,16 @@ class Trainer:
         # Macro F1 = (F1_Class0 + F1_Class1) / 2
         macro_f1 = f1_score(labels, pred_labels, average='macro', zero_division=0)
 
-        # --- [指标 7] G-Mean (几何平均，衡量正负类平衡) ---
-        # Specificity (Class 0 的 Recall) = TN / (TN + FP)
+        # --- [指标 7] Specificity & G-Mean ---
         specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
-        # G-Mean = sqrt(Sensitivity * Specificity)
         g_mean = np.sqrt(recall * specificity)
 
-        # --- [指标 9] Cost (财务代价) ---
-        cost_fn = 100.0  # 漏抓代价
-        cost_fp = 1.0    # 误抓代价
-        total_cost = (fn * cost_fn) + (fp * cost_fp)
-        avg_cost = total_cost / len(labels) if len(labels) > 0 else 0.0
-        
+        # --- [指标 8] MCC (Matthews Correlation Coefficient) ---
+        try:
+            mcc = matthews_corrcoef(labels, pred_labels)
+        except Exception:
+            mcc = 0.0
+
         return {
             "f1": f1,
             "precision": precision,
@@ -236,9 +235,9 @@ class Trainer:
             "auc_pr": auc_pr,
             "macro_recall": macro_recall,
             "macro_f1": macro_f1,
+            "specificity": specificity,
             "g_mean": g_mean,
-            "total_cost": total_cost,
-            "avg_cost": avg_cost
+            "mcc": mcc,
         }
 
     # 知识蒸馏损失
@@ -313,18 +312,39 @@ class Trainer:
                 self.ewc_params[name] = param.data.clone()
     
     def _get_task_indices(self, time_steps: list):
+        """
+        按时序切分训练集与测试集：
+        - 前 80% 时间步的节点 → 训练集（模拟历史已知数据）
+        - 后 20% 时间步的节点 → 测试集（模拟待预测的"未来"数据）
+        这与论文叙事一致：模型在过去的欺诈 pattern 上训练，对新时间步的交易做预测。
+        若切分导致某一集为空（如任务窗口只含单个时间步），则回退到随机 80/20 切分。
+        """
         start_time = time_steps[0]
         end_time = time_steps[-1]
-        
+
         task_mask = (self.dataset.timesteps >= start_time) & (self.dataset.timesteps <= end_time)
         task_nodes_idx = np.where(task_mask.cpu().numpy())[0]
-        classified_nodes_global_idx = self.dataset.classified_idx 
+        classified_nodes_global_idx = self.dataset.classified_idx
         if torch.is_tensor(classified_nodes_global_idx):
             classified_nodes_global_idx = classified_nodes_global_idx.cpu().numpy()
         task_classified_mask = np.isin(task_nodes_idx, classified_nodes_global_idx)
-        task_classified_idx = task_nodes_idx[task_classified_mask] 
-        if len(task_classified_idx) == 0: return None, None 
-        task_train_idx, task_valid_idx = train_test_split(task_classified_idx, test_size=0.15, random_state=42) 
+        task_classified_idx = task_nodes_idx[task_classified_mask]
+        if len(task_classified_idx) == 0:
+            return None, None
+
+        # 时序切分：cutoff = 时间窗口前 80% 处的时间步
+        cutoff = start_time + int((end_time - start_time) * 0.8)
+        node_timesteps = self.dataset.timesteps[task_classified_idx].cpu().numpy()
+        train_mask = node_timesteps <= cutoff
+        task_train_idx = task_classified_idx[train_mask]
+        task_valid_idx = task_classified_idx[~train_mask]
+
+        # 回退：若任意一侧为空（如窗口只有单个时间步），退化为随机切分
+        if len(task_train_idx) == 0 or len(task_valid_idx) == 0:
+            task_train_idx, task_valid_idx = train_test_split(
+                task_classified_idx, test_size=0.2, random_state=42
+            )
+
         return torch.tensor(task_train_idx, dtype=torch.long).to(self.device), \
                torch.tensor(task_valid_idx, dtype=torch.long).to(self.device)
 
@@ -589,9 +609,10 @@ class Trainer:
         print(f"\n--- [CL Evaluation] Evaluating on all seen tasks (0 to {current_task_id}) ---")
         self.model.eval()
         row_metrics = {
-            "f1": [], "recall": [], "precision": [],
-            "auc_roc": [], "auc_pr": [], "g_mean": [], 
-            "avg_cost": [] 
+            "f1": [], "precision": [], "recall": [],
+            "macro_f1": [], "macro_recall": [],
+            "auc_roc": [], "auc_pr": [],
+            "g_mean": [], "specificity": [], "mcc": [],
         }
 
         for t_id in range(current_task_id + 1):
@@ -651,40 +672,26 @@ class Trainer:
             torch.cuda.empty_cache()
 
         avg_metrics = {k: np.mean(v) for k, v in row_metrics.items()}
-        avg_forgetting = 0.0
-        avg_bwt = 0.0
-        
-        if current_task_id > 0 and hasattr(self, 'f1_matrix'):
-            forgetting_sum = 0.0
-            bwt_sum = 0.0
-            for j in range(current_task_id): 
-                history_best = self.f1_matrix[:current_task_id, j].max()
-                current_score = self.f1_matrix[current_task_id, j]
-                forgetting_sum += (history_best - current_score)
-                original_score = self.f1_matrix[j, j] 
-                bwt_sum += (current_score - original_score)
-            
-            avg_forgetting = forgetting_sum / current_task_id
-            avg_bwt = bwt_sum / current_task_id
 
-        print(f"*** CL Metrics @ Task {current_task_id+1} ***")
-        print(f"  [Accuracy]  Avg F1: {avg_metrics['f1']:.4f} | AUC-ROC: {avg_metrics['auc_roc']:.4f} | G-Mean: {avg_metrics['g_mean']:.4f}")
-        print(f"  [Stability] Avg Forgetting (↓): {avg_forgetting:.4f} | Avg BWT (↑): {avg_bwt:.4f}")
-        
+        # Task 1 为热身任务（warm-up）：早期时间步欺诈样本极少，模型尚未充分学习，
+        # 指标可信度低，不纳入论文主要对比，仅供参考。
+        warmup_note = " [WARM-UP, 仅供参考]" if current_task_id == 0 else ""
+        print(f"*** CL Metrics @ Task {current_task_id+1}{warmup_note} ***")
+        print(f"  [Binary]  F1: {avg_metrics['f1']:.4f} | Precision: {avg_metrics['precision']:.4f} | Recall: {avg_metrics['recall']:.4f}")
+        print(f"  [Macro]   Macro-F1: {avg_metrics['macro_f1']:.4f} | Macro-Recall: {avg_metrics['macro_recall']:.4f}")
+        print(f"  [Ranking] AUC-ROC: {avg_metrics['auc_roc']:.4f} | AUC-PR: {avg_metrics['auc_pr']:.4f}")
+        print(f"  [Balance] G-Mean: {avg_metrics['g_mean']:.4f} | Specificity: {avg_metrics['specificity']:.4f} | MCC: {avg_metrics['mcc']:.4f}")
+
         if hasattr(self, 'f1_matrix'):
             current_row = self.f1_matrix[current_task_id, :current_task_id+1]
-            print(f"  > Matrix Row:  {np.round(current_row, 4)}")
-        
+            print(f"  > F1 Matrix Row: {np.round(current_row, 4)}")
+
         for k, v in avg_metrics.items():
             self.tensorboard.add_scalar(f"CL/Avg_{k}", v, current_task_id + 1)
-        self.tensorboard.add_scalar("CL/Avg_Forgetting", avg_forgetting, current_task_id + 1)
-        self.tensorboard.add_scalar("CL/Avg_BWT", avg_bwt, current_task_id + 1)
 
         result_entry = {
             "task_id": current_task_id + 1,
             "time_cost": task_duration,
-            "avg_forgetting": avg_forgetting,
-            "avg_bwt": avg_bwt,
             **{f"avg_{k}": v for k, v in avg_metrics.items()}
         }
         return result_entry
@@ -994,6 +1001,13 @@ class Trainer:
             if self.config.train.model == 'bsl' and self.spc_lambda > 0:
                 self._update_spc_prototypes(task_id, snapshot_data, task_train_idx)
 
+            # [TASD-CL] Component C: SCD 需要旧模型快照作为教师
+            # 注意：TASD-CL 禁用了 LwF (lwf_alpha=0)，因此需要在此独立保存 old_model
+            if self.scd_lambda > 0 and self.config.train.model == 'bsl' and not is_lwf_mode:
+                self.old_model = copy.deepcopy(self.model)
+                self.old_model.to(self.config.train.device)
+                self.old_model.eval()
+
             task_duration = time.time() - task_start_time
             
             del task_train_idx, task_valid_idx, snapshot_data 
@@ -1001,6 +1015,8 @@ class Trainer:
 
             metrics_entry = self.evaluate_cl_metrics(task_id, task_duration)
             metrics_entry["cl_mode"] = "EWC" if is_ewc_mode else ("LwF" if is_lwf_mode else ("Replay" if is_replay_mode else "Naive"))
+            # Task 1 标记为 warm-up：欺诈样本极少，指标不可靠，论文分析时排除
+            metrics_entry["is_warmup"] = (task_id == 0)
             self.aggregate_metrics_history.append(metrics_entry)
             gc.collect(); torch.cuda.empty_cache()
 

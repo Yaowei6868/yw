@@ -35,17 +35,17 @@ train:
     - [46, 49]
 
   # ── Component A: SSF (语义分层 EWC) ──────────────────────────────────────
-  # 基础 λ 乘以语义角色系数后实际范围: att_vec/att_bias=1.5, edge_decoder=1.0,
-  # gnn_encoder/lin_in=0.25, classifier=0.15
-  ewc_lambda: 0.5
+  # 基础 λ 乘以语义角色系数后实际范围: att_vec/att_bias=3.0, edge_decoder=2.0,
+  # gnn_encoder/lin_in=0.5, classifier=0.3
+  ewc_lambda: 1.0
 
   # ── Component B: SPC (子空间原型凝缩回放) ────────────────────────────────
-  spc_lambda: 0.5       # SPC 回放损失权重
-  spc_n_samples: 32     # 每类每任务从原型中采样的节点数
+  spc_lambda: 1.0       # SPC 回放损失权重
+  spc_n_samples: 64     # 每类每任务从原型中采样的节点数
 
   # ── Component C: SCD (置信度过滤子空间蒸馏) ──────────────────────────────
-  scd_lambda: 0.3       # SCD 损失权重
-  scd_tau: 0.5          # 旧模型 alpha_k > tau 才参与该子空间的蒸馏
+  scd_lambda: 0.5       # SCD 损失权重
+  scd_tau: 0.3          # 旧模型 alpha_k > tau 才参与该子空间的蒸馏（阈值降低，纳入更多节点）
 
   # 关闭标准 LwF（由 SCD 替代，避免重复蒸馏）
   lwf_alpha: 0.0
