@@ -659,7 +659,7 @@ class Trainer:
                 t_preds = probs[valid_idx]
                 t_labels = labels_all[valid_idx]
                 
-                res = self.compute_metrics(t_preds, t_labels, threshold=0.15)
+                res = self.compute_metrics(t_preds, t_labels, threshold=0.4)
                 
                 if hasattr(self, 'f1_matrix'):
                     self.f1_matrix[current_task_id, t_id] = res['f1']
