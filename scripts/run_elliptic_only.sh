@@ -89,8 +89,18 @@ run_experiment "configs/fraud_sota/elliptic_Naive_Grad.yaml"
 run_experiment "configs/fraud_sota/elliptic_Naive_PMP.yaml"
 run_experiment "configs/fraud_sota/elliptic_Naive_BSL.yaml"
 
-echo ""; echo "  ── [E] TASD-CL (Ours) ────────────────────────────────"
+echo ""; echo "  ── [E] BSL + 经典 CL 策略 ───────────────────────────"
+run_experiment "configs/ours/cl_on_bsl/elliptic_EWC_BSL.yaml"
+run_experiment "configs/ours/cl_on_bsl/elliptic_LwF_BSL.yaml"
+run_experiment "configs/ours/cl_on_bsl/elliptic_ER_BSL.yaml"
+
+echo ""; echo "  ── [F] TASD-CL (Ours) ────────────────────────────────"
 run_experiment "configs/ours/main/elliptic_TASDCL_BSL.yaml"
+
+echo ""; echo "  ── [G] 消融实验 ──────────────────────────────────────"
+run_experiment "configs/ours/ablation/elliptic_TASDCL_noSSF_BSL.yaml"
+run_experiment "configs/ours/ablation/elliptic_TASDCL_noSPC_BSL.yaml"
+run_experiment "configs/ours/ablation/elliptic_TASDCL_noSCD_BSL.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""
