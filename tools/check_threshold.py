@@ -20,16 +20,16 @@ from fraud_detection.trainer import Trainer
 
 # ── 要检查的实验列表 (config_path, weight_path) ──────────────────────────────
 EXPERIMENTS = [
-    ("configs/fraud_sota/elliptic_Naive_BSL.yaml",
-     "weights/bsl/elliptic_Naive_BSL/elliptic_Naive_BSL.pt"),
-    ("configs/fraud_sota/elliptic_Naive_HOGRL.yaml",
-     "weights/hogrl/elliptic_Naive_HOGRL.pt"),
-    ("configs/fraud_sota/elliptic_Naive_CGNN.yaml",
-     "weights/cgnn/elliptic_Naive_CGNN.pt"),
-    ("configs/fraud_sota/elliptic_Naive_Grad.yaml",
-     "weights/grad/elliptic_Naive_Grad.pt"),
-    ("configs/fraud_sota/elliptic_Naive_ConsisGAD.yaml",
-     "weights/consisgad/elliptic_Naive_ConsisGAD.pt"),
+    ("configs/fraud_sota/elliptic++actor_Naive_BSL.yaml",
+     "weights/bsl/elliptic_actor_Naive_BSL/elliptic_actor_Naive_BSL.pt"),
+    ("configs/fraud_sota/elliptic++actor_Naive_HOGRL.yaml",
+     "weights/hogrl/elliptic_actor_Naive_HOGRL/elliptic_actor_Naive_HOGRL.pt"),
+    ("configs/fraud_sota/elliptic++actor_Naive_CGNN.yaml",
+     "weights/cgnn/elliptic_actor_Naive_CGNN/elliptic_actor_Naive_CGNN.pt"),
+    ("configs/fraud_sota/elliptic++actor_Naive_Grad.yaml",
+     "weights/grad/elliptic_actor_Naive_Grad/elliptic_actor_Naive_Grad.pt"),
+    ("configs/fraud_sota/elliptic++actor_Naive_ConsisGAD.yaml",
+     "weights/consisgad/elliptic_actor_Naive_ConsisGAD/elliptic_actor_Naive_ConsisGAD.pt"),
 ]
 
 THRESHOLDS = [0.3, 0.4, 0.5]
