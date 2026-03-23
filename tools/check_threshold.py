@@ -44,7 +44,7 @@ def get_probs_and_labels(trainer, weight_path):
     trainer.model.load_state_dict(state, strict=False)
     trainer.model.eval()
 
-    dataset = trainer.dataset
+    dataset = trainer.dataset.to(trainer.device)
     with torch.no_grad():
         out = trainer.model(dataset)
         if isinstance(out, tuple):
