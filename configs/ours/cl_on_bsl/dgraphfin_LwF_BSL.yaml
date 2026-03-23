@@ -38,3 +38,4 @@ train:
   lwf_alpha: 1.0
   lwf_temperature: 1.0
   buffer_size_per_class: 0
+  threshold: 0.5

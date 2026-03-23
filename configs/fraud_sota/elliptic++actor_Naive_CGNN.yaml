@@ -45,3 +45,4 @@ train:
   # --- CGNN 特有 Loss 权重 ---
   cgnn_lambda: 0.5  # CSD Loss (语义分解对比损失)
   cgnn_beta: 0.1    # Consistency Loss (一致性损失)
+  threshold: 0.5

@@ -33,3 +33,4 @@ train:
 
   ewc_lambda: 0.0
   buffer_size_per_class: 0
+  threshold: 0.5

@@ -43,3 +43,4 @@ train:
   lwf_alpha: 0.0
   lwf_temperature: 1.0
   buffer_size_per_class: 0       # 关闭 Replay Buffer，完全依赖模型自身的 RNN 演化
+  threshold: 0.5

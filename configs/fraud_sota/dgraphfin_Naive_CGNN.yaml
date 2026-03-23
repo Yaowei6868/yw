@@ -36,3 +36,4 @@ train:
   buffer_size_per_class: 0
   cgnn_lambda: 0.5
   cgnn_beta: 0.1
+  threshold: 0.5

@@ -160,6 +160,7 @@ class Trainer:
         self.spc_lambda = config.train.get('spc_lambda', 0.0)
         self.scd_lambda = config.train.get('scd_lambda', 0.0)
         self.scd_tau    = config.train.get('scd_tau', 0.5)
+        self.threshold  = config.train.get('threshold', 0.5)
         # --------------------------------------------------------------------
         self.lwf_alpha = config.train.get('lwf_alpha', 0.0)
         self.lwf_temperature = config.train.get('lwf_temperature', 1.0)
@@ -659,7 +660,7 @@ class Trainer:
                 t_preds = probs[valid_idx]
                 t_labels = labels_all[valid_idx]
                 
-                res = self.compute_metrics(t_preds, t_labels, threshold=0.4)
+                res = self.compute_metrics(t_preds, t_labels, threshold=self.threshold)
                 
                 if hasattr(self, 'f1_matrix'):
                     self.f1_matrix[current_task_id, t_id] = res['f1']
@@ -1032,7 +1033,8 @@ class Trainer:
         self.save(self.config.name)
 
     # 【修改点 3】: 增强 test 方法的兼容性
-    def test(self, dataset=None, labeled_only=False, threshold=0.5):
+    def test(self, dataset=None, labeled_only=False, threshold=None):
+        threshold = threshold if threshold is not None else self.threshold
         dataset = dataset or self.dataset
         self.model.eval()
         out_res = self.model(dataset)

@@ -37,3 +37,4 @@ train:
   spc_lambda: 0.0
   scd_lambda: 0.0
   scd_tau: 0.5
+  threshold: 0.5

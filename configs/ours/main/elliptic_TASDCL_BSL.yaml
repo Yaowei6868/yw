@@ -53,3 +53,4 @@ train:
 
   # 关闭标准 ER（由 SPC 替代，避免图结构噪声）
   buffer_size_per_class: 0
+  threshold: 0.5
