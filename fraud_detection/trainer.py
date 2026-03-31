@@ -23,8 +23,7 @@ from torch_geometric.utils import to_dense_adj, subgraph
 
 # 引入所有模型
 from .models import (
-    GAT, GCN, GIN, GraphSAGE, STAGNN, EvolveGCN, TGN, MLP,
-    GATv2, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD, GraphSMOTE
+    GCN, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD
 )
 from .datasets import EllipticDataset, EllipticPlusActorDataset, DGraphFinDataset
 from .buffer import ReplayBuffer, SubspacePrototypeBuffer
@@ -82,23 +81,12 @@ BSL_PARAM_GROUPS = {
 # 模型映射表
 models_map = {
     "gcn": GCN,
-    "gat": GAT,
-    "gatv2": GATv2,
-    "gin": GIN,
-    "graphsage": GraphSAGE,
-    "stagnn": STAGNN,
-    "evolvegcn": EvolveGCN,
-    "tgn": TGN,
-    "mlp": MLP,
-    "hogrl": HOGRL,       
-    "cgnn": CGNN,         
-    "grad": GradGNN,      
-    "bsl": BSL,           
-    "pmp": PMPModel,      
-    "consisgad": ConsisGAD, 
-    "gat_cobo": GATv2,
-    "fraudgnn_rl": GATv2,
-    "graphsmote": GraphSMOTE,
+    "hogrl": HOGRL,
+    "cgnn": CGNN,
+    "grad": GradGNN,
+    "bsl": BSL,
+    "pmp": PMPModel,
+    "consisgad": ConsisGAD,
 }
 
 datasets_map = {
@@ -886,22 +874,12 @@ class Trainer:
                         pmp_mask[current_train_idx] = True
                         self.dataset.pmp_mask = pmp_mask
 
-                    if self.config.train.model == 'graphsmote':
-                        snapshot_data.smote_train_idx = current_train_idx
-
                     z_all = None; alpha_all = None
-                    smote_loss = torch.tensor(0.0, device=self.device)
 
                     if self.config.train.model == 'cgnn':
                         outputs, x_nor, x_abnor = self.model(snapshot_data, return_decomposed=True)
                     elif self.config.train.model == 'bsl':
                          outputs, z_all, alpha_all = self.model(snapshot_data, return_stats=True)
-                    elif self.config.train.model == 'graphsmote':
-                        out_res = self.model(snapshot_data)
-                        if isinstance(out_res, tuple):
-                            outputs, smote_loss = out_res
-                        else:
-                            outputs = out_res
                     else:
                         out_res = self.model(snapshot_data)
                         if isinstance(out_res, tuple): outputs = out_res[0]
@@ -979,10 +957,8 @@ class Trainer:
                                 ).sum()
                         cl_loss += self.ewc_lambda * ewc_term
 
-                    w_smote = self.config.train.get('smote_lambda', 0.5)
                     total_loss = task_loss + cl_loss + bsl_loss + cgnn_loss \
-                                 + self.spc_lambda * spc_loss \
-                                 + w_smote * smote_loss
+                                 + self.spc_lambda * spc_loss
                 
                     total_loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)

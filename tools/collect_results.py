@@ -27,31 +27,27 @@ warnings.filterwarnings("ignore")
 METHOD_MAP = {
     # ── Elliptic ──────────────────────────────────────────────────────────
     "elliptic_Naive_GCN":           ("GCN (Sequential)",    "Elliptic",  "A-Static"),
-    "elliptic_Naive_GAT":           ("GAT (Sequential)",    "Elliptic",  "A-Static"),
-    "elliptic_EWC_GCN":             ("GCN + EWC",           "Elliptic",  "B-CL"),
-    "elliptic_LwF_GCN":             ("GCN + LwF",           "Elliptic",  "B-CL"),
-    "elliptic_ER_GCN":              ("GCN + ER (ER-GNN)",   "Elliptic",  "B-CL"),
-    "elliptic_Naive_GraphSMOTE":    ("GCN + GraphSMOTE",    "Elliptic",  "C-Imbalance"),
-    "elliptic_Naive_HOGRL":         ("HOGRL (IJCAI'24)",    "Elliptic",  "D-SOTA"),
-    "elliptic_Naive_CGNN":          ("CGNN (AAAI'25)",      "Elliptic",  "D-SOTA"),
-    "elliptic_Naive_ConsisGAD":     ("ConsisGAD (ICLR'24)", "Elliptic",  "D-SOTA"),
-    "elliptic_Naive_Grad":          ("GradGNN (WWW'25)",    "Elliptic",  "D-SOTA"),
-    "elliptic_Naive_BSL":           ("BSL (AAAI'24, Seq.)", "Elliptic",  "D-SOTA"),
-    "elliptic_TASDCL_BSL":          ("TASD-CL (Ours)",      "Elliptic",  "E-Ours"),
+    "elliptic_Naive_HOGRL":         ("HOGRL (IJCAI'24)",    "Elliptic",  "B-SOTA"),
+    "elliptic_Naive_CGNN":          ("CGNN (AAAI'25)",      "Elliptic",  "B-SOTA"),
+    "elliptic_Naive_ConsisGAD":     ("ConsisGAD (ICLR'24)", "Elliptic",  "B-SOTA"),
+    "elliptic_Naive_Grad":          ("GradGNN (WWW'25)",    "Elliptic",  "B-SOTA"),
+    "elliptic_Naive_BSL":           ("BSL (AAAI'24, Seq.)", "Elliptic",  "B-SOTA"),
+    "elliptic_EWC_BSL":             ("BSL + EWC",           "Elliptic",  "C-CL"),
+    "elliptic_LwF_BSL":             ("BSL + LwF",           "Elliptic",  "C-CL"),
+    "elliptic_ER_BSL":              ("BSL + ER",            "Elliptic",  "C-CL"),
+    "elliptic_TASDCL_BSL":          ("TASD-CL (Ours)",      "Elliptic",  "D-Ours"),
 
     # ── Elliptic++ Actor ──────────────────────────────────────────────────
     "elliptic_actor_Naive_GCN":         ("GCN (Sequential)",    "Elliptic++", "A-Static"),
-    "elliptic_actor_Naive_GAT":         ("GAT (Sequential)",    "Elliptic++", "A-Static"),
-    "elliptic_actor_EWC_GCN":           ("GCN + EWC",           "Elliptic++", "B-CL"),
-    "elliptic_actor_LwF_GCN":           ("GCN + LwF",           "Elliptic++", "B-CL"),
-    "elliptic_actor_ER_GCN":            ("GCN + ER (ER-GNN)",   "Elliptic++", "B-CL"),
-    "elliptic_actor_Naive_GraphSMOTE":  ("GCN + GraphSMOTE",    "Elliptic++", "C-Imbalance"),
-    "elliptic_actor_Naive_HOGRL":       ("HOGRL (IJCAI'24)",    "Elliptic++", "D-SOTA"),
-    "elliptic_actor_Naive_CGNN":        ("CGNN (AAAI'25)",      "Elliptic++", "D-SOTA"),
-    "elliptic_actor_Naive_ConsisGAD":   ("ConsisGAD (ICLR'24)", "Elliptic++", "D-SOTA"),
-    "elliptic_actor_Naive_Grad":        ("GradGNN (WWW'25)",    "Elliptic++", "D-SOTA"),
-    "elliptic_actor_Naive_BSL":         ("BSL (AAAI'24, Seq.)", "Elliptic++", "D-SOTA"),
-    "elliptic_actor_TASDCL_BSL":        ("TASD-CL (Ours)",      "Elliptic++", "E-Ours"),
+    "elliptic_actor_Naive_HOGRL":       ("HOGRL (IJCAI'24)",    "Elliptic++", "B-SOTA"),
+    "elliptic_actor_Naive_CGNN":        ("CGNN (AAAI'25)",      "Elliptic++", "B-SOTA"),
+    "elliptic_actor_Naive_ConsisGAD":   ("ConsisGAD (ICLR'24)", "Elliptic++", "B-SOTA"),
+    "elliptic_actor_Naive_Grad":        ("GradGNN (WWW'25)",    "Elliptic++", "B-SOTA"),
+    "elliptic_actor_Naive_BSL":         ("BSL (AAAI'24, Seq.)", "Elliptic++", "B-SOTA"),
+    "elliptic_actor_EWC_BSL":           ("BSL + EWC",           "Elliptic++", "C-CL"),
+    "elliptic_actor_LwF_BSL":           ("BSL + LwF",           "Elliptic++", "C-CL"),
+    "elliptic_actor_ER_BSL":            ("BSL + ER",            "Elliptic++", "C-CL"),
+    "elliptic_actor_TASDCL_BSL":        ("TASD-CL (Ours)",      "Elliptic++", "D-Ours"),
 }
 
 # 最终汇总表用到的指标列 (CSV 中的原始列名)
@@ -60,33 +56,27 @@ METRIC_COLS = [
     "avg_auc_roc",   # AUC-ROC
     "avg_auc_pr",    # AUC-PR (AP)
     "avg_g_mean",    # G-Mean
-    "avg_forgetting", # 平均遗忘率 (↓)
-    "avg_bwt",       # 后向迁移 BWT (↑)
 ]
 
 # 论文显示名
 METRIC_DISPLAY = {
-    "avg_f1":         "F1 (↑)",
-    "avg_auc_roc":    "AUC-ROC (↑)",
-    "avg_auc_pr":     "AUC-PR (↑)",
-    "avg_g_mean":     "G-Mean (↑)",
-    "avg_forgetting": "Forgetting (↓)",
-    "avg_bwt":        "BWT (↑)",
+    "avg_f1":      "F1 (↑)",
+    "avg_auc_roc": "AUC-ROC (↑)",
+    "avg_auc_pr":  "AUC-PR (↑)",
+    "avg_g_mean":  "G-Mean (↑)",
 }
 
 # 论文中方法出现的顺序
 METHOD_ORDER = [
     "GCN (Sequential)",
-    "GAT (Sequential)",
-    "GCN + EWC",
-    "GCN + LwF",
-    "GCN + ER (ER-GNN)",
-    "GCN + GraphSMOTE",
     "HOGRL (IJCAI'24)",
     "CGNN (AAAI'25)",
     "ConsisGAD (ICLR'24)",
     "GradGNN (WWW'25)",
     "BSL (AAAI'24, Seq.)",
+    "BSL + EWC",
+    "BSL + LwF",
+    "BSL + ER",
     "TASD-CL (Ours)",
 ]
 
@@ -280,15 +270,9 @@ def save_latex(summary_df: pd.DataFrame, out_dir: str):
             vals = sub[col].dropna().values
             if len(vals) == 0:
                 continue
-            # Forgetting: 越小越好
-            if "Forgetting" in col:
-                sorted_v = sorted(set(vals))
-                best_vals[col] = sorted_v[0] if len(sorted_v) > 0 else None
-                second_vals[col] = sorted_v[1] if len(sorted_v) > 1 else None
-            else:
-                sorted_v = sorted(set(vals), reverse=True)
-                best_vals[col] = sorted_v[0] if len(sorted_v) > 0 else None
-                second_vals[col] = sorted_v[1] if len(sorted_v) > 1 else None
+            sorted_v = sorted(set(vals), reverse=True)
+            best_vals[col] = sorted_v[0] if len(sorted_v) > 0 else None
+            second_vals[col] = sorted_v[1] if len(sorted_v) > 1 else None
 
         last_group = None
         for _, row in sub.iterrows():

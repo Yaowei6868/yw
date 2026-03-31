@@ -24,43 +24,27 @@ OUTPUT_TXT  = "results_report.txt"
 
 # Maps experiment name to display name and category
 EXPERIMENT_REGISTRY = {
-    # ── Naive baselines ──────────────────────────────────────────────────────
-    "elliptic_Naive_GCN":         ("GCN (Naive)",          "Backbone"),
-    "elliptic_Naive_GAT":         ("GAT (Naive)",          "Backbone"),
-    "elliptic_Naive_GIN":         ("GIN (Naive)",          "Backbone"),
-    "elliptic_Naive_GATv2":       ("GATv2 (Naive)",        "Backbone"),
-    "elliptic_Naive_GraphSage":   ("GraphSAGE (Naive)",    "Backbone"),
-    "elliptic_Naive_GraphSMOTE":  ("GraphSMOTE (Naive)",   "Backbone"),
-    "elliptic_Naive_HOGRL":       ("HOGRL (Naive)",        "Backbone"),
-    "elliptic_Naive_CGNN":        ("CGNN (Naive)",         "Backbone"),
-    "elliptic_Naive_Grad":        ("Grad (Naive)",         "Backbone"),
-    "elliptic_Naive_ConsisGAD":   ("ConsisGAD (Naive)",    "Backbone"),
-    "elliptic_Naive_BSL":         ("BSL (Naive)",          "Backbone"),
-    # ── GCN CL baselines ────────────────────────────────────────────────────
-    "elliptic_EWC_GCN":           ("GCN + EWC",            "CL-GCN"),
-    "elliptic_ER_GCN":            ("GCN + ER",             "CL-GCN"),
-    "elliptic_LwF_GCN":           ("GCN + LwF",            "CL-GCN"),
-    # ── BSL CL baselines ────────────────────────────────────────────────────
+    # ── Static baselines ────────────────────────────────────────────────────
+    "elliptic_Naive_GCN":         ("GCN (Naive)",          "Static"),
+    # ── Fraud SOTA (Naive) ──────────────────────────────────────────────────
+    "elliptic_Naive_HOGRL":       ("HOGRL (Naive)",        "SOTA"),
+    "elliptic_Naive_CGNN":        ("CGNN (Naive)",         "SOTA"),
+    "elliptic_Naive_ConsisGAD":   ("ConsisGAD (Naive)",    "SOTA"),
+    "elliptic_Naive_Grad":        ("GradGNN (Naive)",      "SOTA"),
+    "elliptic_Naive_BSL":         ("BSL (Naive)",          "SOTA"),
+    # ── Generic CL on BSL ───────────────────────────────────────────────────
     "elliptic_EWC_BSL":           ("BSL + EWC",            "CL-BSL"),
-    "elliptic_ER_BSL":            ("BSL + ER",             "CL-BSL"),
     "elliptic_LwF_BSL":           ("BSL + LwF",            "CL-BSL"),
+    "elliptic_ER_BSL":            ("BSL + ER",             "CL-BSL"),
     # ── Ablation study ──────────────────────────────────────────────────────
     "elliptic_TASDCL_noSSF_BSL":  ("TASD-CL w/o SSF",     "Ablation"),
     "elliptic_TASDCL_noSPC_BSL":  ("TASD-CL w/o SPC",     "Ablation"),
     "elliptic_TASDCL_noSCD_BSL":  ("TASD-CL w/o SCD",     "Ablation"),
     # ── Our method ──────────────────────────────────────────────────────────
     "elliptic_TASDCL_BSL":        ("TASD-CL (Ours)",       "Ours"),
-    # ── Extended baselines (for supplementary) ───────────────────────────────
-    "elliptic_Naive_MLP":         ("MLP (Naive)",          "Extended"),
-    "elliptic_Naive_DOMINANT":    ("DOMINANT (Naive)",     "Extended"),
-    "elliptic_Naive_EvolveGCN":   ("EvolveGCN (Naive)",   "Extended"),
-    "elliptic_Naive_StaGNN":      ("StaGNN (Naive)",       "Extended"),
-    "elliptic_Naive_TGN":         ("TGN (Naive)",          "Extended"),
-    "elliptic_CL_ConsisGAD":      ("ConsisGAD + CL",       "Extended"),
-    "elliptic_CL_GraphSage":      ("GraphSAGE + CL",       "Extended"),
 }
 
-CATEGORY_ORDER = ["Backbone", "CL-GCN", "CL-BSL", "Ablation", "Ours", "Extended"]
+CATEGORY_ORDER = ["Static", "SOTA", "CL-BSL", "Ablation", "Ours"]
 
 
 # ─── CSV Parsing ─────────────────────────────────────────────────────────────
@@ -70,31 +54,24 @@ def parse_new_format(df: pd.DataFrame, exp_name: str) -> dict | None:
     last_task = df.iloc[-1]
     num_tasks = len(df)
 
-    # Forgetting: avg metric at task 1 - avg metric at last task
-    f1_seq     = df["avg_f1"].values
-    macro_f1   = df["avg_macro_f1"].values
-    auc_roc    = df["avg_auc_roc"].values
-    g_mean     = df["avg_g_mean"].values
-
-    # Backward Transfer (BWT) / Forgetting
-    # Using the standard definition: average drop in F1 from task i's best to final
-    # Simple proxy: last_task_macro_f1 vs first_task_macro_f1
-    forgetting = float(macro_f1[0] - macro_f1[-1]) if num_tasks > 1 else 0.0
+    f1_seq   = df["avg_f1"].values
+    macro_f1 = df["avg_macro_f1"].values
+    auc_roc  = df["avg_auc_roc"].values
+    g_mean   = df["avg_g_mean"].values
 
     return {
         "exp_name":       exp_name,
         "num_tasks":      num_tasks,
-        "final_avg_f1":       float(last_task["avg_f1"]),
-        "final_macro_f1":     float(last_task["avg_macro_f1"]),
-        "final_auc_roc":      float(last_task["avg_auc_roc"]),
-        "final_g_mean":       float(last_task["avg_g_mean"]),
-        "mean_avg_f1":        float(f1_seq.mean()),
-        "mean_macro_f1":      float(macro_f1.mean()),
-        "mean_auc_roc":       float(auc_roc.mean()),
-        "mean_g_mean":        float(g_mean.mean()),
-        "forgetting":         forgetting,
-        "cl_mode":            str(last_task.get("cl_mode", "Unknown")),
-        "format":             "new",
+        "final_avg_f1":   float(last_task["avg_f1"]),
+        "final_macro_f1": float(last_task["avg_macro_f1"]),
+        "final_auc_roc":  float(last_task["avg_auc_roc"]),
+        "final_g_mean":   float(last_task["avg_g_mean"]),
+        "mean_avg_f1":    float(f1_seq.mean()),
+        "mean_macro_f1":  float(macro_f1.mean()),
+        "mean_auc_roc":   float(auc_roc.mean()),
+        "mean_g_mean":    float(g_mean.mean()),
+        "cl_mode":        str(last_task.get("cl_mode", "Unknown")),
+        "format":         "new",
     }
 
 
@@ -109,17 +86,16 @@ def parse_old_format(df: pd.DataFrame, exp_name: str) -> dict | None:
     return {
         "exp_name":       exp_name,
         "num_tasks":      1,
-        "final_avg_f1":       macro_f1,
-        "final_macro_f1":     macro_f1,
-        "final_auc_roc":      auc,
-        "final_g_mean":       g_mean,
-        "mean_avg_f1":        macro_f1,
-        "mean_macro_f1":      macro_f1,
-        "mean_auc_roc":       auc,
-        "mean_g_mean":        g_mean,
-        "forgetting":         float(row.get("avg_recall_forgetting", 0.0)),
-        "cl_mode":            cl_mode,
-        "format":             "old",
+        "final_avg_f1":   macro_f1,
+        "final_macro_f1": macro_f1,
+        "final_auc_roc":  auc,
+        "final_g_mean":   g_mean,
+        "mean_avg_f1":    macro_f1,
+        "mean_macro_f1":  macro_f1,
+        "mean_auc_roc":   auc,
+        "mean_g_mean":    g_mean,
+        "cl_mode":        cl_mode,
+        "format":         "old",
     }
 
 
@@ -134,26 +110,19 @@ def parse_f1macro_format(df: pd.DataFrame, exp_name: str) -> dict | None:
     auc_col      = df["auc_roc"].values if "auc_roc" in df.columns else np.zeros(num_tasks)
     gm_col       = df["g_mean"].values  if "g_mean"  in df.columns else np.zeros(num_tasks)
 
-    # 'forgetting' may already be a column
-    if "forgetting" in df.columns:
-        forgetting = float(last_task["forgetting"])
-    else:
-        forgetting = float(macro_f1_col[0] - macro_f1_col[-1]) if num_tasks > 1 else 0.0
-
     return {
         "exp_name":       exp_name,
         "num_tasks":      num_tasks,
-        "final_avg_f1":       float(last_task["f1_macro"]),
-        "final_macro_f1":     float(last_task["f1_macro"]),
-        "final_auc_roc":      float(auc_col[-1]),
-        "final_g_mean":       float(gm_col[-1]),
-        "mean_avg_f1":        float(macro_f1_col.mean()),
-        "mean_macro_f1":      float(macro_f1_col.mean()),
-        "mean_auc_roc":       float(auc_col.mean()),
-        "mean_g_mean":        float(gm_col.mean()),
-        "forgetting":         forgetting,
-        "cl_mode":            str(last_task.get("cl_mode", "Unknown")),
-        "format":             "new",
+        "final_avg_f1":   float(last_task["f1_macro"]),
+        "final_macro_f1": float(last_task["f1_macro"]),
+        "final_auc_roc":  float(auc_col[-1]),
+        "final_g_mean":   float(gm_col[-1]),
+        "mean_avg_f1":    float(macro_f1_col.mean()),
+        "mean_macro_f1":  float(macro_f1_col.mean()),
+        "mean_auc_roc":   float(auc_col.mean()),
+        "mean_g_mean":    float(gm_col.mean()),
+        "cl_mode":        str(last_task.get("cl_mode", "Unknown")),
+        "format":         "new",
     }
 
 
@@ -211,8 +180,7 @@ def main():
             print(f"  {fmt_tag} {exp_name}")
             print(f"        final macro_f1={metrics['final_macro_f1']:.4f}  "
                   f"auc={metrics['final_auc_roc']:.4f}  "
-                  f"g_mean={metrics['final_g_mean']:.4f}  "
-                  f"forgetting={metrics['forgetting']:+.4f}")
+                  f"g_mean={metrics['final_g_mean']:.4f}")
 
     if not results:
         print("\n[ERROR] No results found.")
@@ -231,9 +199,9 @@ def main():
     lines.append(
         f"  {'Method':<30} {'Category':<12} "
         f"{'Macro-F1':>10} {'AUC-ROC':>10} {'G-Mean':>10} "
-        f"{'Avg-F1':>10} {'Forgetting':>12} {'Format':<6}"
+        f"{'Avg-F1':>10} {'Format':<6}"
     )
-    lines.append("-" * 90)
+    lines.append("-" * 80)
 
     for category in CATEGORY_ORDER:
         category_rows = []
@@ -246,16 +214,15 @@ def main():
             if row.empty:
                 category_rows.append(
                     f"  {'* ' + display:<30} {cat:<12} "
-                    f"{'—':>10} {'—':>10} {'—':>10} {'—':>10} {'—':>12} {'N/A':<6}"
+                    f"{'—':>10} {'—':>10} {'—':>10} {'—':>10} {'N/A':<6}"
                 )
             else:
                 r = row.iloc[0]
-                forgetting_str = f"{r['forgetting']:+.4f}"
                 category_rows.append(
                     f"  {display:<30} {cat:<12} "
                     f"{r['final_macro_f1']:>10.4f} {r['final_auc_roc']:>10.4f} "
                     f"{r['final_g_mean']:>10.4f} {r['mean_avg_f1']:>10.4f} "
-                    f"{forgetting_str:>12} {r['format']:<6}"
+                    f"{r['format']:<6}"
                 )
 
         if category_rows:
@@ -272,14 +239,13 @@ def main():
                 f"  {r['exp_name']:<30} {'Other':<12} "
                 f"{r['final_macro_f1']:>10.4f} {r['final_auc_roc']:>10.4f} "
                 f"{r['final_g_mean']:>10.4f} {r['mean_avg_f1']:>10.4f} "
-                f"{r['forgetting']:>+12.4f} {r['format']:<6}"
+                f"{r['format']:<6}"
             )
-        lines.append("-" * 90)
+        lines.append("-" * 80)
 
     lines.append("")
     lines.append("  (* = experiment not yet run)")
     lines.append("  Metrics measured at final task (task 10) over cumulative test set")
-    lines.append("  Forgetting = macro_f1[task1] - macro_f1[task10] (positive = catastrophic forgetting)")
     lines.append("")
 
     # ─── Best Results Highlight ───────────────────────────────────────────────
@@ -292,7 +258,6 @@ def main():
         best_f1  = new_fmt.loc[new_fmt["final_macro_f1"].idxmax()]
         best_auc = new_fmt.loc[new_fmt["final_auc_roc"].idxmax()]
         best_gm  = new_fmt.loc[new_fmt["final_g_mean"].idxmax()]
-        min_fg   = new_fmt.loc[new_fmt["forgetting"].idxmin()]
 
         lines.append(
             f"  Best Macro-F1:  {best_f1['exp_name']:<35} "
@@ -305,10 +270,6 @@ def main():
         lines.append(
             f"  Best G-Mean:    {best_gm['exp_name']:<35} "
             f"{best_gm['final_g_mean']:.4f}"
-        )
-        lines.append(
-            f"  Least Forgetting: {min_fg['exp_name']:<33} "
-            f"{min_fg['forgetting']:+.4f}"
         )
 
         # TASD-CL specific comparison
@@ -326,10 +287,6 @@ def main():
             lines.append(
                 f"    AUC-ROC:   {b['final_auc_roc']:.4f} → {t['final_auc_roc']:.4f} "
                 f"({t['final_auc_roc'] - b['final_auc_roc']:+.4f})"
-            )
-            lines.append(
-                f"    Forgetting:{b['forgetting']:+.4f} → {t['forgetting']:+.4f} "
-                f"({t['forgetting'] - b['forgetting']:+.4f})"
             )
 
     lines.append("")
