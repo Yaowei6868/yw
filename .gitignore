@@ -23,7 +23,11 @@ venv/
 .vscode/
 .idea/
 
+# ── TensorBoard 事件文件（体积大，不入库）────────────────────────
+runs/
+
 # ── 其他杂项（忽略）──────────────────────────────────────────────
 .claude/
 结果表.et
 project_structure.txt
+results_summary.csv

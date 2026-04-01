@@ -1,6 +1,6 @@
 # fraud-detection-gnn 项目说明（CLAUDE.md）
 
-> 最后更新：2026-03-19
+> 最后更新：2026-03-31
 > 本文件供 Claude 在新对话中快速恢复上下文。请在每次重要进展后更新。
 
 ---
@@ -28,29 +28,151 @@ BSL 将节点嵌入解耦为三个子空间：
 
 ## 二、TASD-CL 三组件详细说明
 
+### BSL 子空间结构（三组件的共同基础）
+
+BSL 将每个节点的 hidden 向量 `z`（维度 `hidden_dim`）解耦为三段：
+
+```
+z = [Z_na | Z_aa | Z_nn]
+     ↑         ↑       ↑
+  正常-异常  纯欺诈  纯正常
+  交互子空间  子空间   子空间
+  (sub_dim)  (sub_dim) (sub_dim)
+```
+
+`sub_dim = hidden_dim // 3`（config 中 `hidden_dim: 96` → `sub_dim = 32`）
+
+另有注意力权重向量 `alpha = [α_na, α_aa, α_nn]`，表示当前节点特征在三个子空间的归属比重（三者和为 1）。
+
 | 组件 | 全称 | 作用 | 实现位置 |
 |---|---|---|---|
-| **SSF** | Subspace-Stratified Fisher | 对不同 BSL 参数施加不同强度的 EWC 约束，子空间路由参数（att_vec/att_bias）约束最强 | `trainer.py: _get_ssf_lambda()` |
-| **SPC** | Subspace Prototype Condensation | 任务结束后提取三子空间的类原型（Gaussian μ,σ），存入缓冲区，绕开图结构做回放 | `trainer.py: _update_spc_prototypes()`, `buffer.py: SubspacePrototypeBuffer` |
-| **SCD** | Subspace-Conditioned Distillation | 在三子空间层面蒸馏，只蒸馏旧模型对某子空间置信度高（alpha_k > scd_tau）的节点，Z_aa 权重最高（2.0） | `trainer.py: _compute_scd_loss()` |
+| **SSF** | Subspace-Stratified Fisher | 改造版 EWC，对 BSL 不同参数施加不同强度约束，子空间路由参数约束最强 | `trainer.py: _get_ssf_lambda()` |
+| **SPC** | Subspace Prototype Condensation | 任务结束后提取三子空间的类原型（Gaussian μ,σ），存入缓冲区，绕开图结构做无噪声回放 | `trainer.py: _update_spc_prototypes()`, `buffer.py: SubspacePrototypeBuffer` |
+| **SCD** | Subspace-Conditioned Distillation | 替代标准 LwF，在三子空间层面蒸馏，只蒸馏旧模型高置信度节点，Z_aa 权重最高（2.0） | `trainer.py: _compute_scd_loss()` |
 
-### SSF 参数约束强度配置（`BSL_PARAM_GROUPS`）
+---
+
+### Component A：SSF（Subspace-Stratified Fisher）
+
+**本质**：改造版 EWC，对不同 BSL 参数的 Fisher 约束乘以语义角色系数。
+
+标准 EWC 正则项：
+```
+L_ewc = λ × Σ_θ  F_θ × (θ - θ*)²
+```
+
+SSF 在此基础上，对每个参数查询 `BSL_PARAM_GROUPS` 得到角色乘数，实际约束 = `ewc_lambda × role_mult`：
+
 ```python
-'att_vec':      3.0   # 子空间路由（最高）
-'att_bias':     3.0
-'edge_decoder': 2.0   # 边类型分类（中等）
-'gnn_encoder':  0.5   # 图编码器（低）
-'lin_in':       0.5
-'classifier':   0.3   # 分类器（最低）
+BSL_PARAM_GROUPS = {
+    'att_vec':      3.0,   # 子空间路由（最高）：定义欺诈特征归属，丢失则子空间解耦崩塌
+    'att_bias':     3.0,
+    'edge_decoder': 2.0,   # 边类型分类（中等）
+    'gnn_encoder':  0.5,   # GATv2 图编码器（低）：图结构随任务变化，应允许更新
+    'lin_in':       0.5,
+    'classifier':   0.3,   # 最终分类头（最低）：任务相关层，允许自由更新
+}
 ```
 
-### TASD-CL 激活方式（yaml 配置）
+实际约束范围（`ewc_lambda=1.0`时）：`att_vec/att_bias = 3.0`，`classifier = 0.3`。
+
+**为什么 att_vec 最高**：它决定每个节点的特征往哪个子空间路由（欺诈 → Z_aa，正常 → Z_nn），是 BSL 的核心语义结构，一旦被新任务覆盖，整个子空间解耦失效。
+
+**Config 参数**：
 ```yaml
-spc_lambda: 1.0      # SPC 回放损失权重，0 表示关闭
-scd_lambda: 1.0      # SCD 蒸馏损失权重，0 表示关闭
-scd_tau: 0.5         # SCD 置信度过滤阈值
-ewc_lambda: 1.0      # SSF 使用 EWC 框架，需配合 BSL 生效
+ewc_lambda: 1.0    # 基础约束强度，乘角色系数后实际范围 [0.3, 3.0]
+                   # 设为 0 → SSF 完全关闭，退化为 Naive BSL
 ```
+
+---
+
+### Component B：SPC（Subspace Prototype Condensation）
+
+**本质**：替代标准 Experience Replay，存储子空间高斯原型而非原始节点索引。
+
+**为什么不能直接做图回放**：标准 ER 存节点索引，下个 task 再前向传播。但欺诈图是时序的——Task 3 的节点在 Task 5 的图快照中邻居已完全不同，强行回放得到的表示是结构噪声，蒸馏反而有害。
+
+**SPC 的做法**：每个 task 训练结束后，计算三子空间在两类上的高斯原型：
+```
+对每个 task t、类别 c ∈ {0,1}、子空间 k ∈ {0,1,2}：
+  mu[t][c][k]    = mean(Z_k[训练节点 & 标签==c])   # [sub_dim]
+  sigma[t][c][k] = std (Z_k[训练节点 & 标签==c])   # [sub_dim]
+```
+
+存储代价：`O(T × 2 × 3 × sub_dim)` = T=10 时约 1920 个浮点数（极小）。
+
+**回放时**，从原型采样合成节点，跳过 GNN 编码器直接送分类头：
+```python
+z_sample = mu + eps * sigma   # eps ~ N(0,I)
+z_replay = cat([z_na, z_aa, z_nn], dim=1)  # [n, hidden_dim]
+out_rep  = model.classifier(z_replay)
+L_spc    = BCE(out_rep, y_replay)
+```
+
+**Config 参数**：
+```yaml
+spc_lambda: 1.0       # 回放损失权重，设为 0 → SPC 关闭
+spc_n_samples: 64     # 每个 (task, class) 采样多少合成节点
+                      # 已见 3 个 task 时，每次回放生成 3×2×64=384 个合成节点
+```
+
+---
+
+### Component C：SCD（Subspace-Conditioned Distillation）
+
+**本质**：替代标准 LwF，在三子空间层面做知识蒸馏，且只蒸馏旧模型高置信度节点。
+
+**标准 LwF 的缺陷**：
+1. 只蒸馏 1 维 logit 输出，丢失 BSL 三子空间的几何结构
+2. 欺诈检测严重不平衡（~9% 欺诈），旧模型对大量正常节点预测接近 `-∞`，强行蒸馏引入负迁移
+
+**SCD 的做法**：
+```python
+for k in range(3):
+    # 只蒸馏旧模型对子空间 k 高置信度的节点（旧模型认为该节点"属于"这个子空间）
+    confidence_mask = (old_alpha[:, k] > scd_tau)
+    L_scd += subspace_weights[k] × MSE(new_Z_k[mask], old_Z_k[mask])
+```
+
+子空间权重：`Z_na=1.0, Z_aa=2.0, Z_nn=1.0`，欺诈感知子空间优先保护。
+
+**Config 参数**：
+```yaml
+scd_lambda: 0.5       # 蒸馏损失权重，设为 0 → SCD 关闭
+scd_tau: 0.3          # 置信度过滤阈值
+                      # tau 越小 → 纳入更多节点（噪声更多）
+                      # tau 越大 → 只蒸馏最典型节点（更保守）
+                      # 当前取 0.3（低阈值，纳入更多节点）
+
+# 关闭标准 LwF（由 SCD 替代，避免重复蒸馏）
+lwf_alpha: 0.0
+# 关闭标准 ER（由 SPC 替代，避免图结构噪声）
+buffer_size_per_class: 0
+```
+
+---
+
+### 总损失公式
+
+```
+L_total = L_task                                           # 当前 task Focal Loss
+        + ewc_lambda × Σ_θ role_mult(θ) × F_θ × (θ-θ*)²  # SSF 参数约束
+        + spc_lambda × L_spc                               # SPC 子空间原型回放
+        + scd_lambda × L_scd                               # SCD 子空间蒸馏
+        + bsl_loss                                         # BSL 自带 L_d + L_bsl
+```
+
+### Config 参数速查表
+
+| 参数 | 组件 | 含义 | 设为 0 的效果 |
+|---|---|---|---|
+| `ewc_lambda` | A: SSF | 参数约束基础强度（乘角色系数后范围 0.3~3.0） | 无参数约束，退化为 Naive |
+| `spc_lambda` | B: SPC | 子空间原型回放损失权重 | 无原型回放 |
+| `spc_n_samples` | B: SPC | 每个 (task, class) 合成多少节点 | — |
+| `scd_lambda` | C: SCD | 子空间蒸馏损失权重 | 无蒸馏 |
+| `scd_tau` | C: SCD | 旧模型置信度过滤阈值（越小纳入越多节点） | — |
+| `lwf_alpha: 0.0` | — | 关闭标准 LwF（已被 SCD 替代） | — |
+| `buffer_size_per_class: 0` | — | 关闭标准 ER（已被 SPC 替代） | — |
 
 ---
 
@@ -72,14 +194,14 @@ snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
 
 ### 评估方式
 - **CL 矩阵评估**：`f1_matrix[current_task_id, t_id]` 记录在任务 t 训练后对历史任务 j 的 F1
-- **Forgetting**：历史最高分 - 当前分
-- **BWT（Backward Transfer）**：当前分 - 首次训练分
 - **每 task 结束后**在所有已见任务上做 CL 评估（`evaluate_cl_metrics`）
+- 指标：Binary F1 / Macro F1 / AUC-ROC / AUC-PR / G-Mean / Specificity / MCC
+- **注意**：Forgetting / BWT 指标已从代码和结果汇总中删除（论文不使用）
 
 ### 损失函数设计
 - 主损失：`BinaryFocalLoss`（alpha 动态计算，根据正负比例截断）
 - Task 1：`clip_cap = 20.0`；其他 task：`clip_cap = 10.0`
-- 总损失：`task_loss + cl_loss + bsl_loss + cgnn_loss + spc_lambda * spc_loss + smote_lambda * smote_loss`
+- 总损失：`task_loss + cl_loss + bsl_loss + cgnn_loss + spc_lambda * spc_loss`
 
 ---
 
@@ -102,24 +224,18 @@ snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
 
 | 模型 | 类别 | 实现状态 | 备注 |
 |---|---|---|---|
-| GCN | SOTA baseline | ✅ 完整 | |
-| GAT | SOTA baseline | ✅ 完整 | |
-| HOGRL | SOTA baseline | ✅ 完整 | DGraphFin OOM |
-| CGNN | SOTA baseline | ✅ 完整 | DGraphFin OOM |
-| BSL | SOTA baseline + backbone | ✅ 完整 | DGraphFin OOM |
-| ConsisGAD | SOTA baseline | ✅ 完整 | |
-| GradGNN | SOTA baseline | ✅ 完整 | |
-| PMP | SOTA baseline | ✅ 完整 | config 在 `configs/fraud_sota/` |
-| GraphSMOTE | 不平衡处理 | ✅ 已修复 | 原实现只是2层GCN，已补全SMOTE插值逻辑 |
-| EvolveGCN | 动态图 | ❌ 空壳占位符 | 依赖时序GRU/LSTM，暂未实现，**不要运行** |
-| TGN | 动态图 | ❌ 空壳占位符 | 依赖时序记忆模块，暂未实现，**不要运行** |
+| GCN | 通用 GNN 基线 | ✅ 完整 | |
+| HOGRL | 欺诈 SOTA | ✅ 完整 | DGraphFin OOM |
+| CGNN | 欺诈 SOTA | ✅ 完整 | DGraphFin OOM |
+| BSL | 欺诈 SOTA + backbone | ✅ 完整 | DGraphFin OOM |
+| ConsisGAD | 欺诈 SOTA | ✅ 完整 | |
+| GradGNN | 欺诈 SOTA | ✅ 完整 | |
+| PMP | 欺诈 SOTA | ✅ 完整 | config 在 `configs/fraud_sota/{dataset}/` |
 
-### GraphSMOTE 修复说明
-原实现是普通 2 层 GCN，完全没有 SMOTE 逻辑。
-修复后：`encode()` → `_smote_interpolate()`（KNN + 线性插值，梯度可回传）→ `forward()`
-- 训练时返回 `(out, smote_loss)`
-- 推理时只返回 `out`
-- trainer 中通过 `snapshot_data.smote_train_idx` 注入当前训练节点索引
+**已从实验中移除（config 移至 `configs/deprecated/`，代码 MODEL_MAP 已删除）**：
+- GAT：与 GCN 功能重叠，冗余
+- GraphSMOTE：不平衡采样方法，与 CL 故事线无关
+- EvolveGCN / TGN：空壳占位符，从未完整实现
 
 ---
 
@@ -127,17 +243,21 @@ snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
 
 ```
 configs/
-  fraud_sota/          # SOTA 对比实验（GCN/GAT/BSL/ConsisGAD/CGNN/GradGNN/HOGRL/PMP）
-  tasdcl/              # TASD-CL 方法实验（BSL + SSF/SPC/SCD 组合）
-  imbalanced/          # 不平衡处理实验（GraphSMOTE）
-  dynamic_graph/       # EvolveGCN/TGN（空壳，不要运行）
+  traditional/               # GCN Naive（三个数据集）
+  fraud_sota/                # 欺诈 SOTA baseline（Naive）
+    elliptic/                # BSL/CGNN/ConsisGAD/GradGNN/HOGRL/PMP
+    elliptic++actor/
+    dgraphfin/
+  ours/                      # 我们的方法
+    main/                    # BSL + TASD-CL（三个数据集）
+    cl_on_bsl/               # BSL + EWC/LwF/ER（通用 CL 基线）
+    ablation/                # noSSF / noSPC / noSCD 消融
+  deprecated/                # 已废弃，不再运行
+    cl_baselines/            # GCN + EWC/LwF/ER（已改为 BSL+CL）
+    imbalanced/              # GraphSMOTE
+    dynamic_graph/           # EvolveGCN / TGN（空壳）
+    *.yaml                   # GAT Naive（三个数据集）
 ```
-
-### PMP 配置位置（注意！）
-PMP 的 config 在 `configs/fraud_sota/`，**不在** `configs/PMP/`（该目录不存在）：
-- `configs/fraud_sota/elliptic_Naive_PMP.yaml`
-- `configs/fraud_sota/elliptic++actor_Naive_PMP.yaml`
-- `configs/fraud_sota/dgraphfin_Naive_PMP.yaml`
 
 ---
 
@@ -162,30 +282,29 @@ nohup bash scripts/run_dgraph_only.sh > logs/dgraph_main.log 2>&1 &
 ### 已完成运行（有结果）
 | 模型 | 数据集 | 策略 | 状态 |
 |---|---|---|---|
-| GCN | Elliptic | Naive/EWC/LwF/ER | ✅ 完成 |
-| GAT | Elliptic | Naive | ✅ 完成 |
+| GCN | Elliptic | Naive | ✅ 完成 |
 | BSL | Elliptic | Naive | ✅ 完成 |
 | BSL | Elliptic | TASD-CL | ✅ 完成 |
 | CGNN | Elliptic | Naive | ✅ 完成 |
-| ConsisGAD | Elliptic | Naive + CL(EWC) | ✅ 完成 |
+| ConsisGAD | Elliptic | Naive | ✅ 完成 |
 | GradGNN | Elliptic | Naive | ✅ 完成 |
 | HOGRL | Elliptic | Naive | ✅ 完成 |
 | PMP | Elliptic | Naive | ✅ 完成 |
-| GraphSMOTE | Elliptic | Naive | ✅ 完成 |
-| GCN | Elliptic++ Actor | Naive/EWC/LwF/ER | ✅ 完成 |
-| GAT | Elliptic++ Actor | Naive | ✅ 完成 |
+| GCN | Elliptic++ Actor | Naive | ✅ 完成 |
 | BSL | Elliptic++ Actor | Naive + TASD-CL | ✅ 完成 |
 | CGNN | Elliptic++ Actor | Naive | ✅ 完成 |
 | ConsisGAD | Elliptic++ Actor | Naive | ✅ 完成 |
-| GradGNN | Elliptic++ Actor | Naive + CL | ✅ 完成 |
-| HOGRL | Elliptic++ Actor | Naive + CL | ✅ 完成 |
-| GraphSMOTE | Elliptic++ Actor | Naive | ✅ 完成 |
+| GradGNN | Elliptic++ Actor | Naive | ✅ 完成 |
+| HOGRL | Elliptic++ Actor | Naive | ✅ 完成 |
 
-### 待运行 / 存在问题
-| 模型 | 数据集 | 问题 |
-|---|---|---|
-| 所有模型 | DGraphFin | OOM，待解决 |
-| PMP | Elliptic++ Actor / DGraphFin | 待确认是否完成 |
+### 待运行（论文所需）
+| 模型 | 数据集 | 策略 | 备注 |
+|---|---|---|---|
+| BSL | Elliptic | EWC / LwF / ER | `configs/ours/cl_on_bsl/elliptic_*.yaml` |
+| BSL | Elliptic++ Actor | EWC / LwF / ER | `configs/ours/cl_on_bsl/elliptic++actor_*.yaml` |
+| BSL | Elliptic | noSSF / noSPC / noSCD | `configs/ours/ablation/elliptic_*.yaml` |
+| BSL | Elliptic++ Actor | noSSF / noSPC / noSCD | `configs/ours/ablation/elliptic++actor_*.yaml` |
+| 所有模型 | DGraphFin | — | OOM 未解决，暂搁置 |
 
 ---
 
