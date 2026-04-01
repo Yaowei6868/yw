@@ -47,10 +47,4 @@ train:
   scd_lambda: 0.5       # SCD 损失权重
   scd_tau: 0.3          # 旧模型 alpha_k > tau 才参与该子空间的蒸馏（阈值降低，纳入更多节点）
 
-  # 关闭标准 LwF（由 SCD 替代，避免重复蒸馏）
-  lwf_alpha: 0.0
-  lwf_temperature: 1.0
-
-  # 关闭标准 ER（由 SPC 替代，避免图结构噪声）
-  buffer_size_per_class: 0
   threshold: 0.5
