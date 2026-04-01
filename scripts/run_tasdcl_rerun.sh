@@ -16,10 +16,6 @@ PYTHON="${PYTHON:-python}"
 
 mkdir -p "${LOG_DIR}"
 
-NUM_TASKS=10
-COMPLETE_ROWS=$((NUM_TASKS + 1))   # header + 10 task rows
-
-SKIP_COUNT=0
 RUN_COUNT=0
 FAIL_COUNT=0
 TOTAL_START=$(date +%s)
@@ -30,20 +26,6 @@ _yaml_field() {
     grep -m1 "^${2}:" "$1" | awk '{print $2}' | tr -d '"' | tr -d "'"
 }
 
-is_complete() {
-    local config_path="$1"
-    local exp_name save_dir csv_path row_count
-    exp_name=$(_yaml_field "$config_path" "name")
-    save_dir=$(grep -m1 "save_dir:" "$config_path" | awk '{print $2}' | tr -d '"' | tr -d "'")
-    csv_path="${ROOT_DIR}/${save_dir}/metrics/${exp_name}_aggregate_metrics.csv"
-    if [[ -f "$csv_path" ]]; then
-        row_count=$(wc -l < "$csv_path" 2>/dev/null || echo 0)
-        if [[ "$row_count" -ge "$COMPLETE_ROWS" ]]; then
-            return 0   # complete → skip
-        fi
-    fi
-    return 1   # not complete → run
-}
 
 run_experiment() {
     local config_path="$1"
@@ -57,12 +39,6 @@ run_experiment() {
     echo "  ┌─────────────────────────────────────────────────────────┐"
     printf  "  │  %s: %-50s│\n" "${label}" "${exp_name}"
     echo "  └─────────────────────────────────────────────────────────┘"
-
-    if is_complete "$config_path"; then
-        echo "  [SKIP] 结果已完整 (${COMPLETE_ROWS} 行 CSV)，跳过"
-        SKIP_COUNT=$((SKIP_COUNT + 1))
-        return
-    fi
 
     echo "  [RUN ] 开始训练 @ $(date '+%H:%M:%S')"
     echo "         日志: logs/${exp_name}.log"
@@ -129,8 +105,8 @@ printf "║  总耗时:   %dh %dm %ds%-38s║\n" \
        $(( (TOTAL_ELAPSED % 3600) / 60 )) \
        $(( TOTAL_ELAPSED % 60 )) ""
 echo "╠═══════════════════════════════════════════════════════════╣"
-printf "║  ✅ 成功运行: %-2d   ⏭  跳过: %-2d   ❌ 失败: %-2d          ║\n" \
-       "${RUN_COUNT}" "${SKIP_COUNT}" "${FAIL_COUNT}"
+printf "║  ✅ 成功运行: %-2d   ❌ 失败: %-2d                          ║\n" \
+       "${RUN_COUNT}" "${FAIL_COUNT}"
 echo "╠═══════════════════════════════════════════════════════════╣"
 echo "║  下一步: git add weights && git push                     ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
