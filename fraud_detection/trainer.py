@@ -972,12 +972,14 @@ class Trainer:
                 self.replay_buffer.add_exemplars(idx_cpu.numpy(), task_train_labels)
 
             # [TASD-CL] Component B: 任务结束后更新 SPC 子空间原型库
-            if self.config.train.model == 'bsl' and self.spc_lambda > 0:
+            # 跳过 Task 0 (warm-up)：欺诈样本极少，原型质量差，会污染后续任务
+            if self.config.train.model == 'bsl' and self.spc_lambda > 0 and task_id > 0:
                 self._update_spc_prototypes(task_id, snapshot_data, task_train_idx)
 
             # [TASD-CL] Component C: SCD 需要旧模型快照作为教师
             # 注意：TASD-CL 禁用了 LwF (lwf_alpha=0)，因此需要在此独立保存 old_model
-            if self.scd_lambda > 0 and self.config.train.model == 'bsl' and not is_lwf_mode:
+            # 跳过 Task 0 (warm-up)：warm-up 模型质量差，蒸馏会误导后续任务
+            if self.scd_lambda > 0 and self.config.train.model == 'bsl' and not is_lwf_mode and task_id > 0:
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
                 self.old_model.eval()
