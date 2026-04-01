@@ -671,9 +671,6 @@ class Trainer:
         print(f"  [Ranking] AUC-ROC: {avg_metrics['auc_roc']:.4f} | AUC-PR: {avg_metrics['auc_pr']:.4f}")
         print(f"  [Balance] G-Mean: {avg_metrics['g_mean']:.4f} | Specificity: {avg_metrics['specificity']:.4f} | MCC: {avg_metrics['mcc']:.4f}")
 
-        if hasattr(self, 'f1_matrix'):
-            current_row = self.f1_matrix[current_task_id, :current_task_id+1]
-            print(f"  > F1 Matrix Row: {np.round(current_row, 4)}")
 
         for k, v in avg_metrics.items():
             self.tensorboard.add_scalar(f"CL/Avg_{k}", v, current_task_id + 1)
