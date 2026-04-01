@@ -37,8 +37,8 @@ train:
   # Ablation: Component A (SSF) + Component B (SPC) only — SCD disabled
   ewc_lambda: 1.0       # 与 full TASD-CL 一致
 
-  spc_lambda: 1.0       # 与 full TASD-CL 一致
-  spc_n_samples: 64
+  spc_lambda: 0.3       # 与 full TASD-CL 一致
+  spc_n_samples: 32
 
   scd_lambda: 0.0       # ← SCD 关闭（消融对象）
   scd_tau: 0.3

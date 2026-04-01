@@ -41,7 +41,7 @@ train:
   spc_n_samples: 0
 
   scd_lambda: 0.5       # 与 full TASD-CL 一致
-  scd_tau: 0.3
+  scd_tau: 0.5
 
   lwf_alpha: 0.0
   lwf_temperature: 1.0
