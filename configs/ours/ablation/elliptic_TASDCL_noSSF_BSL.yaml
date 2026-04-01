@@ -34,14 +34,14 @@ train:
     - [41, 45]
     - [46, 49]
 
-  # Ablation: SPC + SCD only (no SSF/EWC)
-  ewc_lambda: 0.0
+  # Ablation: Component B (SPC) + Component C (SCD) only — SSF disabled
+  ewc_lambda: 0.0       # ← SSF 关闭（消融对象），其余与 full TASD-CL 完全一致
 
-  spc_lambda: 0.5
-  spc_n_samples: 32
+  spc_lambda: 1.0
+  spc_n_samples: 64
 
-  scd_lambda: 0.3
-  scd_tau: 0.5
+  scd_lambda: 0.5
+  scd_tau: 0.3
 
   lwf_alpha: 0.0
   lwf_temperature: 1.0

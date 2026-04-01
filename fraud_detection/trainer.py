@@ -962,7 +962,13 @@ class Trainer:
                     self.optimizer.step()
                     self.scheduler.step(total_loss)
 
-            if is_ewc_mode: self._update_ewc_metrics(task_train_idx, snapshot_data)
+            # [TASD-CL] SSF warm-up 跳过：Task 0 的 θ* 来自极少欺诈样本的坏模型，
+            # 把它作为 EWC 锚点会在 Task 1 约束训练方向，必须跳过。
+            # 只对 BSL + TASD-CL 生效（spc_lambda>0 or scd_lambda>0），不影响通用 EWC 基线。
+            _is_tasdcl_bsl = (self.config.train.model == 'bsl' and
+                              (self.spc_lambda > 0 or self.scd_lambda > 0))
+            if is_ewc_mode and not (_is_tasdcl_bsl and task_id == 0):
+                self._update_ewc_metrics(task_train_idx, snapshot_data)
             if is_lwf_mode:
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
