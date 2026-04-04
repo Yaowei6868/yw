@@ -1041,6 +1041,10 @@ class Trainer:
             if is_ewc_mode and not (_is_tasdcl_mode and task_id == 0):
                 self._update_ewc_metrics(task_train_idx, snapshot_data)
             if is_lwf_mode:
+                if self.config.train.model == 'cgnn':
+                    self.model.conv._cached_x_nor = None
+                    self.model.conv._cached_x_abnor = None
+                    self.model.conv._cached_node_alpha = None
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
             if is_replay_mode:
@@ -1059,6 +1063,10 @@ class Trainer:
             # 跳过 Task 0 (warm-up)：warm-up 模型质量差，蒸馏会误导后续任务
             if self.scd_lambda > 0 and self.config.train.model in ('bsl', 'cgnn') \
                     and not is_lwf_mode and task_id > 0:
+                if self.config.train.model == 'cgnn':
+                    self.model.conv._cached_x_nor = None
+                    self.model.conv._cached_x_abnor = None
+                    self.model.conv._cached_node_alpha = None
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
                 self.old_model.eval()
