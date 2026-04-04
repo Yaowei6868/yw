@@ -66,8 +66,7 @@ class BinaryFocalLoss(nn.Module):
             return focal_loss
 
 # ==========================================
-# TASD-CL: BSL 参数语义角色 -> SSF λ 乘数
-# 子空间路由参数(att_vec/att_bias)获最高约束，编码器参数获最低约束
+# TASD-CL: 参数语义角色 -> SSF λ 乘数
 # ==========================================
 BSL_PARAM_GROUPS = {
     'att_vec':      3.0,   # 子空间路由 (最高): 定义欺诈特征归属，遗忘代价极高
@@ -76,6 +75,16 @@ BSL_PARAM_GROUPS = {
     'gnn_encoder':  0.5,   # 图编码器 (低): 图结构随任务变化，应允许更新
     'lin_in':       0.5,
     'classifier':   0.3,   # 最终分类器 (最低): 任务特定层
+}
+
+# CGNN 参数组：att_vec/att_lin 决定正常/异常子空间路由，语义地位等同于 BSL 的 att_vec
+CGNN_PARAM_GROUPS = {
+    'conv.att_vec':    3.0,   # 去噪注意力路由向量 (最高): 决定欺诈/正常特征权重
+    'conv.att_lin':    2.5,   # 去噪注意力线性层
+    'conv.lin_nor':    2.0,   # 正常子空间投影
+    'conv.lin_abnor':  2.0,   # 异常子空间投影
+    'lin_in':          0.5,   # 输入映射 (低)
+    'classifier':      0.3,   # 分类头 (最低)
 }
 
 # 模型映射表
@@ -144,7 +153,11 @@ class Trainer:
         self.spc_buffer = None
         if self.config.train.model == 'bsl':
             sub_dim = config.model.hidden_dim // 3
-            self.spc_buffer = SubspacePrototypeBuffer(sub_dim=sub_dim)
+            self.spc_buffer = SubspacePrototypeBuffer(sub_dim=sub_dim, n_subspaces=3)
+        elif self.config.train.model == 'cgnn':
+            # CGNN: 2 子空间 (x_nor, x_abnor)，每个维度 = hidden_dim
+            sub_dim = config.model.hidden_dim
+            self.spc_buffer = SubspacePrototypeBuffer(sub_dim=sub_dim, n_subspaces=2)
         self.spc_lambda = config.train.get('spc_lambda', 0.0)
         self.scd_lambda = config.train.get('scd_lambda', 0.0)
         self.scd_tau    = config.train.get('scd_tau', 0.5)
@@ -516,54 +529,85 @@ class Trainer:
     def _get_ssf_lambda(self, param_name: str) -> float:
         """
         [TASD-CL] Component A: Subspace-Stratified Fisher (SSF)
-        根据 BSL 参数的语义角色返回 λ 乘数。
-        子空间路由参数获最高约束，避免欺诈子空间在任务切换时整体坍塌。
+        根据模型参数的语义角色返回 λ 乘数。
+        BSL: 子空间路由参数 (att_vec/att_bias) 获最高约束
+        CGNN: 去噪注意力路由参数 (conv.att_vec/conv.att_lin) 获最高约束
         """
-        for pattern, multiplier in BSL_PARAM_GROUPS.items():
-            if pattern in param_name:
-                return multiplier
-        return 1.0
+        if self.config.train.model == 'cgnn':
+            for pattern, multiplier in CGNN_PARAM_GROUPS.items():
+                if pattern in param_name:
+                    return multiplier
+            return 1.0
+        else:
+            for pattern, multiplier in BSL_PARAM_GROUPS.items():
+                if pattern in param_name:
+                    return multiplier
+            return 1.0
 
     def _compute_scd_loss(
         self,
         snapshot_data,
-        new_z: torch.Tensor,
-        new_alpha: torch.Tensor,
+        new_z=None,
+        new_alpha=None,
+        new_x_nor=None,
+        new_x_abnor=None,
     ) -> torch.Tensor:
         """
         [TASD-CL] Component C: Subspace-Conditioned Distillation (SCD)
 
-        在 BSL 三个解耦子空间上进行置信度过滤的知识蒸馏。
-        仅蒸馏旧模型对某子空间赋予高置信度 (alpha_k > scd_tau) 的节点，
-        规避不平衡数据集上旧模型不可靠预测的负迁移。
-
-        相比标准 LwF 只蒸馏 1 维输出，SCD 保留了 3×sub_dim 维子空间几何。
-        Z_aa（欺诈感知子空间）赋予最高蒸馏权重。
+        BSL 模式：在 BSL 三子空间上置信度过滤蒸馏，Z_aa 权重 2.0。
+        CGNN 模式：在 x_nor / x_abnor 两子空间上置信度过滤蒸馏，x_abnor 权重 2.0。
+                   置信度由 per-node alpha 决定：alpha<tau → 异常节点（高置信欺诈）。
         """
         if self.old_model is None:
             return torch.tensor(0.0, device=self.device)
 
         self.old_model.eval()
-        with torch.no_grad():
-            _, old_z, old_alpha = self.old_model(snapshot_data, return_stats=True)
 
-        old_parts = self.model.get_sub_features(old_z.detach())
-        new_parts = self.model.get_sub_features(new_z)
+        # ── BSL 模式 ────────────────────────────────────────────────────────
+        if self.config.train.model == 'bsl':
+            with torch.no_grad():
+                _, old_z, old_alpha = self.old_model(snapshot_data, return_stats=True)
 
-        # Z_na:1.0, Z_aa:2.0, Z_nn:1.0 — 欺诈子空间权重最高
-        subspace_weights = [1.0, 2.0, 1.0]
-        loss_scd = torch.tensor(0.0, device=self.device)
+            old_parts = self.model.get_sub_features(old_z.detach())
+            new_parts = self.model.get_sub_features(new_z)
+            subspace_weights = [1.0, 2.0, 1.0]   # Z_na, Z_aa, Z_nn
+            loss_scd = torch.tensor(0.0, device=self.device)
+            for k in range(3):
+                confidence_mask = (old_alpha[:, k] > self.scd_tau).detach()
+                if confidence_mask.sum() < 2:
+                    continue
+                loss_scd = loss_scd + subspace_weights[k] * F.mse_loss(
+                    new_parts[k][confidence_mask],
+                    old_parts[k][confidence_mask].detach(),
+                )
+            return loss_scd
 
-        for k in range(3):
-            # 只蒸馏旧模型对第 k 个子空间高置信度的节点
-            confidence_mask = (old_alpha[:, k] > self.scd_tau).detach()
-            if confidence_mask.sum() < 2:
-                continue
-            loss_scd = loss_scd + subspace_weights[k] * F.mse_loss(
-                new_parts[k][confidence_mask],
-                old_parts[k][confidence_mask].detach(),
-            )
-        return loss_scd
+        # ── CGNN 模式 ────────────────────────────────────────────────────────
+        elif self.config.train.model == 'cgnn':
+            with torch.no_grad():
+                _, old_x_nor, old_x_abnor, old_node_alpha = self.old_model(
+                    snapshot_data, return_decomposed=True, return_node_alpha=True
+                )
+
+            # alpha 接近 0 → 节点倾向异常；alpha 接近 1 → 节点倾向正常
+            mask_abnormal = (old_node_alpha < self.scd_tau).detach()
+            mask_normal   = (old_node_alpha > 1.0 - self.scd_tau).detach()
+
+            loss_scd = torch.tensor(0.0, device=self.device)
+            if mask_abnormal.sum() >= 2:
+                loss_scd = loss_scd + 2.0 * F.mse_loss(
+                    new_x_abnor[mask_abnormal],
+                    old_x_abnor[mask_abnormal].detach(),
+                )
+            if mask_normal.sum() >= 2:
+                loss_scd = loss_scd + 1.0 * F.mse_loss(
+                    new_x_nor[mask_normal],
+                    old_x_nor[mask_normal].detach(),
+                )
+            return loss_scd
+
+        return torch.tensor(0.0, device=self.device)
 
     def _update_spc_prototypes(
         self,
@@ -573,19 +617,30 @@ class Trainer:
     ):
         """
         [TASD-CL] Component B: Subspace Prototype Condensation (SPC) 更新
-        在任务结束后提取 BSL 三子空间的类原型并存入 SPC 缓冲区。
-        存储 Gaussian 原型 (μ, σ) 而非原始节点索引，实现图结构无关的回放。
+        BSL: 提取三子空间 (Z_na, Z_aa, Z_nn) 类原型
+        CGNN: 提取两子空间 (x_nor, x_abnor) 类原型
+        存储 Gaussian 原型 (μ, σ)，实现图结构无关的回放。
         """
         if self.spc_buffer is None or self.spc_lambda <= 0.0:
             return
 
         self.model.eval()
-        with torch.no_grad():
-            _, z_all, _ = self.model(snapshot_data, return_stats=True)
-
-        z_train = z_all[task_train_idx]
-        z_parts_train = list(self.model.get_sub_features(z_train))
         y_train = self.dataset.y[task_train_idx.cpu()].to(self.device)
+
+        with torch.no_grad():
+            if self.config.train.model == 'bsl':
+                _, z_all, _ = self.model(snapshot_data, return_stats=True)
+                z_train = z_all[task_train_idx]
+                z_parts_train = list(self.model.get_sub_features(z_train))
+
+            elif self.config.train.model == 'cgnn':
+                _, x_nor, x_abnor = self.model(snapshot_data, return_decomposed=True)
+                # 两子空间，各 [N, hidden_dim]
+                z_parts_train = [x_nor[task_train_idx], x_abnor[task_train_idx]]
+
+            else:
+                self.model.train()
+                return
 
         self.spc_buffer.add_task_prototypes(task_id, z_parts_train, y_train)
 
@@ -896,6 +951,20 @@ class Trainer:
                         l_csd, l_consist = self._cgnn_loss(x_nor, x_abnor, self.dataset.y.to(self.device), current_train_idx)
                         cgnn_loss = w_csd * l_csd + w_consist * l_consist
 
+                        # [TASD-CL / CGNN] Component B: SPC 子空间原型回放
+                        if self.spc_lambda > 0 and self.spc_buffer is not None \
+                                and self.spc_buffer.has_prototypes():
+                            n_per_cls = self.config.train.get('spc_n_samples', 32)
+                            z_rep, y_rep = self.spc_buffer.sample_prototypes(n_per_cls, self.device)
+                            if z_rep is not None:
+                                hidden = self.config.model.hidden_dim
+                                z_nor_rep   = z_rep[:, :hidden]       # [n, hidden_dim]
+                                z_abnor_rep = z_rep[:, hidden:]       # [n, hidden_dim]
+                                out_rep = self.model.replay_forward(z_nor_rep, z_abnor_rep)
+                                spc_loss = F.binary_cross_entropy_with_logits(
+                                    out_rep, (y_rep == 1).float().unsqueeze(1)
+                                )
+
                     if self.config.train.model == 'bsl' and z_all is not None:
                         l_d, l_bsl_term = self._compute_bsl_full_loss(
                             self.model, snapshot_data, outputs, z_all, alpha_all,
@@ -903,9 +972,7 @@ class Trainer:
                         )
                         bsl_loss = 0.4 * l_d + 0.8 * l_bsl_term
 
-                        # [TASD-CL] Component B: 子空间原型凝缩回放 (SPC)
-                        # 从历史任务的子空间原型中采样合成节点，直接通过 BSL 分类器计算回放损失。
-                        # 绕过 GNN 前向传播，完全图结构无关。
+                        # [TASD-CL / BSL] Component B: SPC 子空间原型回放
                         if self.spc_lambda > 0 and self.spc_buffer is not None \
                                 and self.spc_buffer.has_prototypes():
                             n_per_cls = self.config.train.get('spc_n_samples', 32)
@@ -932,22 +999,26 @@ class Trainer:
                             torch.sigmoid(outputs[current_train_idx]),
                             torch.sigmoid(old_out.reshape(-1)[current_train_idx]))
 
-                    # [TASD-CL] Component C: 置信度过滤子空间蒸馏 (SCD)
-                    # 在 BSL 三子空间层面蒸馏，只蒸馏旧模型高置信度区域，避免不平衡偏差。
-                    if self.scd_lambda > 0 and self.config.train.model == 'bsl' \
-                            and task_id > 0 and self.old_model is not None \
-                            and z_all is not None:
-                        loss_scd = self._compute_scd_loss(snapshot_data, z_all, alpha_all)
-                        cl_loss = cl_loss + self.scd_lambda * loss_scd
+                    # [TASD-CL] Component C: SCD 置信度过滤子空间蒸馏
+                    # BSL: 在三子空间层面蒸馏，Z_aa 权重 2.0
+                    # CGNN: 在 x_nor/x_abnor 层面蒸馏，x_abnor 权重 2.0
+                    if self.scd_lambda > 0 and task_id > 0 and self.old_model is not None:
+                        if self.config.train.model == 'bsl' and z_all is not None:
+                            loss_scd = self._compute_scd_loss(snapshot_data, new_z=z_all, new_alpha=alpha_all)
+                            cl_loss = cl_loss + self.scd_lambda * loss_scd
+                        elif self.config.train.model == 'cgnn':
+                            loss_scd = self._compute_scd_loss(
+                                snapshot_data, new_x_nor=x_nor, new_x_abnor=x_abnor
+                            )
+                            cl_loss = cl_loss + self.scd_lambda * loss_scd
 
                     if is_ewc_mode and task_id > 0:
                         ewc_term = 0.0
                         for name, param in self.model.named_parameters():
                             if name in self.ewc_fisher:
-                                # [TASD-CL] Component A: SSF - BSL 使用语义角色 λ 乘数
-                                # att_vec/att_bias 约束最强，gnn_encoder/classifier 约束最弱
+                                # [TASD-CL] Component A: SSF — BSL 和 CGNN 均使用语义角色乘数
                                 role_mult = self._get_ssf_lambda(name) \
-                                    if self.config.train.model == 'bsl' else 1.0
+                                    if self.config.train.model in ('bsl', 'cgnn') else 1.0
                                 ewc_term += role_mult * (
                                     self.ewc_fisher[name].to(param.device) *
                                     (param - self.ewc_params[name].to(param.device)).pow(2)
@@ -964,10 +1035,10 @@ class Trainer:
 
             # [TASD-CL] SSF warm-up 跳过：Task 0 的 θ* 来自极少欺诈样本的坏模型，
             # 把它作为 EWC 锚点会在 Task 1 约束训练方向，必须跳过。
-            # 只对 BSL + TASD-CL 生效（spc_lambda>0 or scd_lambda>0），不影响通用 EWC 基线。
-            _is_tasdcl_bsl = (self.config.train.model == 'bsl' and
-                              (self.spc_lambda > 0 or self.scd_lambda > 0))
-            if is_ewc_mode and not (_is_tasdcl_bsl and task_id == 0):
+            # 对 BSL 和 CGNN 的 TASD-CL 均生效（spc_lambda>0 or scd_lambda>0），不影响通用 EWC 基线。
+            _is_tasdcl_mode = (self.config.train.model in ('bsl', 'cgnn') and
+                               (self.spc_lambda > 0 or self.scd_lambda > 0))
+            if is_ewc_mode and not (_is_tasdcl_mode and task_id == 0):
                 self._update_ewc_metrics(task_train_idx, snapshot_data)
             if is_lwf_mode:
                 self.old_model = copy.deepcopy(self.model)
@@ -979,13 +1050,15 @@ class Trainer:
 
             # [TASD-CL] Component B: 任务结束后更新 SPC 子空间原型库
             # 跳过 Task 0 (warm-up)：欺诈样本极少，原型质量差，会污染后续任务
-            if self.config.train.model == 'bsl' and self.spc_lambda > 0 and task_id > 0:
-                self._update_spc_prototypes(task_id, snapshot_data, task_train_idx)
+            if self.spc_lambda > 0 and task_id > 0 and self.spc_buffer is not None:
+                if self.config.train.model in ('bsl', 'cgnn'):
+                    self._update_spc_prototypes(task_id, snapshot_data, task_train_idx)
 
             # [TASD-CL] Component C: SCD 需要旧模型快照作为教师
             # 注意：TASD-CL 禁用了 LwF (lwf_alpha=0)，因此需要在此独立保存 old_model
             # 跳过 Task 0 (warm-up)：warm-up 模型质量差，蒸馏会误导后续任务
-            if self.scd_lambda > 0 and self.config.train.model == 'bsl' and not is_lwf_mode and task_id > 0:
+            if self.scd_lambda > 0 and self.config.train.model in ('bsl', 'cgnn') \
+                    and not is_lwf_mode and task_id > 0:
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
                 self.old_model.eval()

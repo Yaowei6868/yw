@@ -266,103 +266,129 @@ class CGNNLayer(MessagePassing):
     """
     Strict implementation of AAAI-25 CGNN Layer.
     Ref: Context-aware Graph Neural Network for Graph-based Fraud Detection
+    Extended for TASD-CL: caches per-node denoising attention weight (node_alpha)
+    for use in Subspace-Conditioned Distillation (SCD).
     """
     def __init__(self, in_dim, out_dim):
-        # 聚合方式：add (对应公式中的求和)
         super(CGNNLayer, self).__init__(aggr='add')
         self.in_dim = in_dim
         self.out_dim = out_dim
-        # 确保输入维度能被2整除 (论文 Eq.2: m = d // 2)
         assert in_dim % 2 == 0, "Input dimension must be divisible by 2 for splitting."
         self.half_dim = in_dim // 2
         # 1. 语义分解 (Eq. 2)
-        # W_nor, b_nor
         self.lin_nor = nn.Linear(self.half_dim, out_dim)
-        # W_abnor, b_abnor
         self.lin_abnor = nn.Linear(self.half_dim, out_dim)
         # 2. 去噪注意力 (Eq. 4)
-        # W, b inside Tanh
-        self.att_lin = nn.Linear(out_dim, out_dim) 
-        # W_Att vector
+        self.att_lin = nn.Linear(out_dim, out_dim)
         self.att_vec = nn.Linear(out_dim, 1, bias=False)
         # 3. 更新层 (Eq. 5)
         self.update_lin = nn.Linear(out_dim, out_dim)
+        # TASD-CL 缓存
+        self._cached_x_nor = None
+        self._cached_x_abnor = None
+        self._cached_node_alpha = None  # [N] per-node 平均注意力权重
 
     def forward(self, x, edge_index):
-
         edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
 
         x_left = x[:, :self.half_dim]
         x_right = x[:, self.half_dim:]
-        # 投影到子空间
-        x_nor = self.lin_nor(x_left)      # x^0
-        x_abnor = self.lin_abnor(x_right) # x^1
-        self._cached_x_nor = x_nor
+        x_nor   = self.lin_nor(x_left)      # [N, out_dim]
+        x_abnor = self.lin_abnor(x_right)   # [N, out_dim]
+        self._cached_x_nor   = x_nor
         self._cached_x_abnor = x_abnor
+
         row, col = edge_index
+
+        # --- [TASD-CL] 预计算 per-edge alpha 并聚合为 per-node alpha ---
+        # 用 detach() 避免对主梯度图的干扰；SCD 仅用于掩码过滤
+        with torch.no_grad():
+            merged_col    = x_nor[col] + x_abnor[col]  # [E, out_dim]
+            h_att_col     = torch.tanh(self.att_lin(merged_col))
+            alpha_edge    = torch.sigmoid(self.att_vec(h_att_col)).squeeze(-1)  # [E]
+
+            node_alpha_sum = torch.zeros(x.size(0), device=x.device)
+            node_alpha_cnt = torch.zeros(x.size(0), device=x.device)
+            node_alpha_sum.scatter_add_(0, row, alpha_edge)
+            node_alpha_cnt.scatter_add_(0, row, torch.ones_like(alpha_edge))
+            self._cached_node_alpha = node_alpha_sum / node_alpha_cnt.clamp(min=1.0)
+        # ---------------------------------------------------------------
+
         deg = degree(col, x.size(0), dtype=x.dtype)
         deg_inv_sqrt = deg.pow(-0.5)
         deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
         norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
-        # 开始传播
+
         return self.propagate(edge_index, x_nor=x_nor, x_abnor=x_abnor, norm=norm)
 
     def message(self, x_nor_j, x_abnor_j, norm):
-        """
-        对应论文 Eq. 4: Denoising Attention
-        alpha_j = softmax(W_Att * Tanh(W(x_j^0 + x_j^1) + b))
-        """
-        # W(x^0 + x^1) + b
-        merged = x_nor_j + x_abnor_j
-        h_att = torch.tanh(self.att_lin(merged))
-
-        att_score = self.att_vec(h_att) # [E, 1]
-        alpha = torch.sigmoid(att_score) 
-
-        # 加权求和: x_j = alpha * x^0 + (1-alpha) * x^1
-        x_j = alpha * x_nor_j + (1 - alpha) * x_abnor_j
-               # 应用度归一化 (Eq. 5 中的 1/sqrt(d))
+        """对应论文 Eq. 4: Denoising Attention"""
+        merged  = x_nor_j + x_abnor_j
+        h_att   = torch.tanh(self.att_lin(merged))
+        att_score = self.att_vec(h_att)           # [E, 1]
+        alpha   = torch.sigmoid(att_score)
+        x_j     = alpha * x_nor_j + (1 - alpha) * x_abnor_j
         return norm.view(-1, 1) * x_j
+
     def update(self, aggr_out, x_nor, x_abnor):
         return self.update_lin(aggr_out)
 
+
 class CGNN(nn.Module):
     """
-    Full Context-aware Graph Neural Network Model
+    Full Context-aware Graph Neural Network Model.
+    Extended for TASD-CL: exposes subspace features and per-node attention
+    weights for SSF / SPC / SCD components.
     """
     def __init__(self, config):
         super(CGNN, self).__init__()
         self.config = config
-        self.input_dim = config.input_dim
+        self.input_dim  = config.input_dim
         self.hidden_dim = config.hidden_dim
         self.output_dim = config.output_dim
-        self.dropout = config.dropout     
-        # 论文 Eq. 1: 初始特征映射
-        self.lin_in = nn.Linear(self.input_dim, self.hidden_dim)      
-        # 核心 CGNN 层
-        # 注意：输入维度必须是 hidden_dim (且能被2整除)
-        self.conv = CGNNLayer(self.hidden_dim, self.hidden_dim)      
-        # 分类器
+        self.dropout    = config.dropout
+        self.lin_in     = nn.Linear(self.input_dim, self.hidden_dim)
+        self.conv       = CGNNLayer(self.hidden_dim, self.hidden_dim)
         self.classifier = nn.Linear(self.hidden_dim, self.output_dim)
 
-    def forward(self, data, return_decomposed=False):
-        x, edge_index = data.x, data.edge_index      
-        # 1. 映射到潜在空间 (Eq. 1)
+    def forward(self, data, return_decomposed=False, return_node_alpha=False):
+        x, edge_index = data.x, data.edge_index
         x = self.lin_in(x)
-        x = F.leaky_relu(x) # 论文提及使用 Leaky ReLU
-        x = F.dropout(x, p=self.dropout, training=self.training)       
-        # 2. CGNN 核心层 (Eq. 2-5)
-        # 这一步内部完成了分解、注意力计算和聚合
+        x = F.leaky_relu(x)
+        x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.conv(x, edge_index)
         x = F.leaky_relu(x)
-        x = F.dropout(x, p=self.dropout, training=self.training)     
-        # 3. 分类 (Eq. 6)
-        out = self.classifier(x)    
-        # 为了计算论文中的 L_CSD (对比损失)，需要返回分解后的特征
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        out = self.classifier(x)
+
+        x_nor   = self.conv._cached_x_nor
+        x_abnor = self.conv._cached_x_abnor
+        node_alpha = self.conv._cached_node_alpha  # [N]
+
+        if return_decomposed and return_node_alpha:
+            return out, x_nor, x_abnor, node_alpha
         if return_decomposed:
-            # 从 layer 中取出缓存的 x_nor 和 x_abnor
-            return out, self.conv._cached_x_nor, self.conv._cached_x_abnor
+            return out, x_nor, x_abnor
+        if return_node_alpha:
+            return out, node_alpha
         return out
+
+    def get_node_alpha(self, data) -> torch.Tensor:
+        """返回当前 forward 缓存的 per-node 平均注意力权重 [N]。"""
+        return self.conv._cached_node_alpha
+
+    def replay_forward(self, z_nor: torch.Tensor, z_abnor: torch.Tensor,
+                       alpha_val: float = 0.5) -> torch.Tensor:
+        """
+        [TASD-CL SPC] 回放接口：用合成子空间向量直接计算分类 logit，
+        跳过 GNN 传播，完全图结构无关。
+        z_nor:   [N, hidden_dim]  正常子空间合成样本
+        z_abnor: [N, hidden_dim]  异常子空间合成样本
+        alpha_val: 固定混合权重（用均值代替动态路由）
+        """
+        z_merged = alpha_val * z_nor + (1.0 - alpha_val) * z_abnor  # [N, hidden_dim]
+        z_fused  = self.conv.update_lin(z_merged)                    # [N, hidden_dim]
+        return self.classifier(z_fused)                              # [N, 1]
 
 
 

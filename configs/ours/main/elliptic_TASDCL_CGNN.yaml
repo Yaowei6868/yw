@@ -1,4 +1,4 @@
-name: elliptic_TASDCL_BSL
+name: elliptic_TASDCL_CGNN
 
 dataset:
   features_path: "data/elliptic/elliptic_txs_features.csv"
@@ -7,21 +7,21 @@ dataset:
 
 model:
   input_dim: ???      # 自动推断 (166)
-  hidden_dim: 96      # 必须能被 3 整除 (96/3=32 sub_dim)
+  hidden_dim: 128     # CGNN 双子空间，各 128 维，SPC sub_dim=128
   output_dim: 1
-  dropout: 0.3
+  dropout: 0.5
   num_heads: 4
 
 train:
   dataset: elliptic
-  model: bsl
+  model: cgnn
   device: cuda
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/bsl/elliptic_TASDCL_BSL
+  save_dir: weights/cgnn/elliptic_TASDCL_CGNN
 
-  num_epochs_per_task: 100
+  num_epochs_per_task: 50
   task_schedule:
     - [1, 5]
     - [6, 10]
@@ -35,17 +35,20 @@ train:
     - [46, 49]
 
   # ── Component A: SSF (语义分层 EWC) ──────────────────────────────────────
-  # 基础 λ 乘以语义角色系数后实际范围: att_vec/att_bias=3.0, edge_decoder=2.0,
-  # gnn_encoder/lin_in=0.5, classifier=0.3
+  # conv.att_vec/conv.att_lin=3.0/2.5, conv.lin_nor/lin_abnor=2.0, lin_in=0.5, classifier=0.3
   ewc_lambda: 1.0
 
   # ── Component B: SPC (子空间原型凝缩回放) ────────────────────────────────
-  spc_lambda: 0.3       # 降低回放损失权重：lambda=1.0 时回放量随任务累积过大，影响精确率
-  spc_n_samples: 32     # 每类每任务采样数减半，降低合成节点对 batch 的干扰
+  spc_lambda: 0.3       # 回放损失权重
+  spc_n_samples: 32     # 每类每任务采样数
 
   # ── Component C: SCD (置信度过滤子空间蒸馏) ──────────────────────────────
   scd_lambda: 0.5       # SCD 损失权重
-  scd_tau: 0.5          # 提高置信度阈值：更保守，只蒸馏旧模型最确定的节点
+  scd_tau: 0.5          # 置信度阈值：alpha<tau → 异常节点 (x_abnor 权重2.0)
 
+  # 关闭标准 LwF（由 SCD 替代）和标准 ER（由 SPC 替代）
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0
 
   threshold: 0.5

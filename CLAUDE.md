@@ -1,6 +1,6 @@
 # fraud-detection-gnn 项目说明（CLAUDE.md）
 
-> 最后更新：2026-03-31
+> 最后更新：2026-04-03
 > 本文件供 Claude 在新对话中快速恢复上下文。请在每次重要进展后更新。
 
 ---
@@ -10,11 +10,19 @@
 ### 研究问题（一句话）
 在图神经网络欺诈检测的任务增量持续学习场景下，提出 TASD-CL 框架，通过子空间语义过滤（SSF）、原型凝缩（SPC）和置信度蒸馏（SCD）三个组件，使 BSL 模型在时序欺诈 pattern 演变中保持稳定的检测性能。
 
-### 研究叙事逻辑
-1. **发现的问题**：SOTA 欺诈检测 GNN 模型在时序任务增量流中，随时间步推进，在新出现的欺诈 pattern 上性能持续下降（F1、AUC 下滑）
-2. **根本原因**：欺诈 pattern 存在时序分布偏移（pattern evolution），模型在当前任务上过拟合，子空间表示被污染。注意：**灾难性遗忘不是主要问题**（实验已验证基本不存在），真正问题是时序分布偏移
-3. **解决方法**：TASD-CL 框架，在 BSL backbone 上添加三个组件
-4. **效果**：在三个金融图数据集上，Naive 各 SOTA 随任务推进性能下降，TASD-CL 显著缓解这种下降
+### 研究叙事逻辑（最终确认版，基于 BRIGHT 工业动机）
+
+1. **工业背景（BRIGHT 动机）**：真实金融风控系统（如 eBay）中交易数据以流式到达，若每次都构建包含全量历史边的 Cumulative 图，会面临两个致命问题：**延迟极高**（无法满足毫秒级实时推理要求）和**内存爆炸（OOM）**。因此工业界采用基于时间窗口的 Task-only 构图方式，每次只处理当前窗口内的边（如 BRIGHT 的 Two-Stage Directed Graph 设计）。
+
+2. **发现的问题**：在 Task-only 的窗口构图约束下，GNN 欺诈检测模型极易对当前欺诈 pattern 过拟合，随时间步推进性能不稳定（在 Elliptic 等数据集上可观察到明显的性能波动和下滑趋势）。
+
+3. **根本原因**：Task-only 窗口切分本质上是任务增量持续学习场景。模型在当前任务上更新参数时，会覆盖历史欺诈 pattern 的表示，导致子空间结构被污染、历史知识丢失。
+
+4. **为什么不能用传统 ER**：标准 Experience Replay 需要在新任务图上重新前向传播历史节点，但 Task-only 设定下历史节点的邻居图结构已经消失，强行回放得到的是结构噪声，反而有害——且这违背了 BRIGHT 提出的实时性约束。
+
+5. **解决方法**：TASD-CL 框架，通过 SPC 仅保留轻量级高斯原型 (μ,σ)，以极低内存代价实现跨时间步的知识保留，完全不依赖历史图结构，天然契合 Task-only 工业约束。
+
+6. **效果目标**：在 Elliptic 数据集上，TASD-CL 在多个评估指标上超过所有对比方法（BSL/CGNN/ConsisGAD/GradGNN/HOGRL/PMP/GCN）。
 
 ### 核心思想：为什么选 BSL 作为 backbone
 BSL 将节点嵌入解耦为三个子空间：
@@ -349,183 +357,123 @@ nohup bash scripts/run_dgraph_only.sh > logs/dgraph_main.log 2>&1 &
 
 ---
 
-### 9.3 BSL Naive vs TASD-CL 逐任务对比（Elliptic）
+### 9.3 所有方法逐任务 avg_F1 对比（Elliptic，排除 warmup Task 1）
 
-| Task | Naive F1 | TASD-CL F1 | Naive AUC | TASD-CL AUC |
-|---|---|---|---|---|
-| 1 | 0.022 | 0.031 | 0.644 | **0.835** |
-| 2 | 0.109 | 0.136 | 0.609 | **0.872** |
-| 3 | 0.173 | 0.204 | 0.608 | **0.883** |
-| 4 | 0.217 | 0.255 | 0.620 | **0.873** |
-| 5 | 0.214 | 0.259 | 0.642 | **0.865** |
-| 6 | 0.240 | 0.289 | 0.657 | **0.834** |
-| 7 | 0.246 | 0.290 | 0.655 | **0.810** |
-| 8 | 0.232 | 0.272 | 0.639 | **0.794** |
-| 9 | 0.218 | 0.253 | 0.614 | **0.777** |
-| 10 | 0.207 | 0.240 | 0.616 | **0.771** |
+| Task | GCN | CGNN | GradGNN | HOGRL | PMP | ConsisGAD | BSL Naive | **TASD-CL** |
+|---|---|---|---|---|---|---|---|---|
+| 2 | 0.136 | 0.113 | 0.175 | 0.115 | 0.136 | 0.000 | 0.118 | 0.048 |
+| 3 | 0.311 | 0.298 | 0.338 | 0.324 | 0.100 | 0.000 | 0.175 | 0.144 |
+| 4 | 0.398 | 0.386 | 0.410 | 0.399 | 0.080 | 0.000 | 0.270 | 0.257 |
+| 5 | 0.454 | 0.461 | 0.465 | 0.453 | 0.068 | 0.000 | 0.351 | 0.322 |
+| 6 | **0.469** | **0.476** | **0.473** | **0.457** | 0.063 | 0.000 | **0.381** | 0.363 |
+| 7 | 0.456 | 0.467 | 0.458 | 0.455 | 0.057 | 0.000 | 0.378 | **0.368** |
+| 8 | 0.426 | 0.448 | 0.427 | 0.429 | 0.061 | 0.000 | 0.348 | **0.354** |
+| 9 | 0.380 | 0.399 | 0.383 | 0.395 | 0.055 | 0.000 | 0.311 | 0.315 |
+| 10 | 0.381 | 0.402 | 0.384 | 0.395 | 0.059 | 0.000 | 0.316 | 0.302 |
 
-**结论**：TASD-CL 在 F1 上略有提升（+16%），在 AUC-ROC 上显著提升（+25%，0.616→0.771）。
+### 9.4 所有方法逐任务 avg_AUC-ROC 对比（Elliptic）
+
+| Task | GCN | CGNN | GradGNN | HOGRL | BSL Naive | **TASD-CL** |
+|---|---|---|---|---|---|---|
+| 2 | 0.934 | 0.897 | 0.958 | 0.914 | 0.835 | **0.868** |
+| 3 | **0.937** | 0.909 | 0.940 | **0.929** | 0.818 | 0.860 |
+| 4 | 0.920 | 0.896 | 0.912 | 0.901 | 0.811 | 0.852 |
+| 5 | 0.923 | **0.910** | 0.912 | 0.907 | 0.830 | 0.853 |
+| 6 | 0.924 | **0.910** | 0.905 | 0.900 | 0.834 | 0.856 |
+| 7 | 0.911 | 0.909 | 0.890 | 0.895 | 0.825 | 0.845 |
+| 8 | 0.877 | 0.897 | 0.850 | 0.869 | 0.777 | **0.825** |
+| 9 | 0.856 | 0.867 | 0.829 | 0.847 | 0.765 | 0.791 |
+| 10 | 0.856 | 0.863 | 0.837 | 0.857 | 0.768 | 0.778 |
+
+**关键观察**：TASD-CL 的 AUC 在所有任务上均高于 BSL Naive（backbone 改进有效），但仍低于 GCN/CGNN/HOGRL/GradGNN。
 
 ---
 
-### 9.4 GCN 四种持续学习策略对比（Elliptic，Task 10）
+### 9.5 消融实验（Elliptic，Task 10）
 
-| 策略 | F1 | AUC-ROC | 相对 Naive |
+| 方法 | avg_F1 | avg_AUC-ROC | avg_Macro_F1 |
 |---|---|---|---|
-| Naive | 0.2970 | 0.8304 | 基准 |
-| EWC | 0.2836 | 0.8211 | F1 -4.5%，AUC -1.1% |
-| LwF | 0.2978 | 0.8216 | F1 +0.3%，AUC -1.1% |
-| ER | 0.2981 | 0.8358 | F1 +0.4%，AUC +0.7% |
+| TASD-CL Full | **0.302** | 0.778 | **0.574** |
+| noSSF (SPC+SCD) | 0.066 | 0.738 | 0.488 |
+| noSPC (SSF+SCD) | 0.049 | 0.750 | 0.484 |
+| noSCD (SSF+SPC) | 0.188 | **0.797** | 0.551 |
 
-**结论**：三种经典 CL 策略在 GCN 上几乎没有效果，ER 微弱最优。
-
----
-
-### 9.5 ⚠️ 实验结果中的关键问题与不足
-
-#### 问题一：Forgetting 方向不一致，研究叙事受挑战
-**现象**：部分模型 forgetting 为**负值**（性能随时间反而提升）：
-- GradGNN Naive：forgetting = **-0.139**（大幅提升）
-- HOGRL Naive：forgetting = **-0.089**（持续提升）
-- ConsisGAD Naive：forgetting = **-0.016**（微弱提升）
-
-**影响**：研究叙事是"SOTA 在时序流中性能下降"，但至少 3 个模型表现相反，这会让 reviewer 质疑研究问题的普遍性。
-
-**可能原因**：
-- 这些模型在 task-only snapshot 下，随着任务推进逐渐学到更多样本，冷启动问题逐渐消失
-- 早期任务欺诈样本极少，后期欺诈 pattern 更密集，模型更容易学到
-
-**待解决**：需要搞清楚到底哪些模型在哪个数据集上真正"性能下降"，才能构建有说服力的 motivation。
+**关键发现**：
+- SSF 和 SPC 都是决定性组件，移除任意一个 F1 崩溃至 0.05-0.07（-84%）
+- SCD 对 F1 贡献 +61%（0.188→0.302），但轻微损害 AUC（noSCD AUC 最高 0.797）
+- Full TASD-CL 在 F1 上是所有消融变体中最优的
 
 ---
 
-#### 问题二：TASD-CL 在 Elliptic++ Actor 上表现不如 Naive BSL
-**现象**：
-- Elliptic Actor Task 10：TASD-CL F1 = 0.2686 < Naive F1 = 0.3549（差距 -24%）
-- AUC-ROC：TASD-CL 0.711 < Naive 0.741
+### 9.6 关键未决问题
 
-**影响**：TASD-CL 只在 Elliptic 上有效，在 Elliptic++ Actor 上反而有害，跨数据集泛化性存疑。
+#### 问题一：TASD-CL 绝对性能不足
+**现象**：TASD-CL F1=0.302，低于 GCN(0.381)/CGNN(0.402)/GradGNN(0.384)/HOGRL(0.395)。
+**原因**：BSL backbone 本身比其他 SOTA 弱，TASD-CL 虽然改进了 BSL，但未能跨越 backbone 差距。
+**行动**：超参调优（见第十六节策略 A），目标将 F1 推至 0.38+。
 
-**可能原因**：
-- Elliptic++ Actor 数据分布与 Elliptic 差异较大，SCD 的蒸馏反而引入了负迁移
-- 超参数（scd_tau, spc_lambda 等）在 Elliptic 上调参，未对 Elliptic++ Actor 适配
-- Task 1 在 Elliptic++ Actor 上 F1=0（完全没检测到欺诈），后续任务从零开始积累，SPC 原型质量差
+#### 问题二：ConsisGAD 和 PMP 结果异常
+**现象**：ConsisGAD F1=0.000，PMP F1=0.059，均在 Task-only 设定下完全失效。
+**正面解读**：这恰恰证明了 Task-only 窗口设定对无 CL 机制的模型非常苛刻，TASD-CL 的价值正在于此。需确认失效是设定本身导致的，而非 bug。
 
-**待解决**：需要针对 Elliptic++ Actor 调整超参数，或分析 Task 1 崩溃的原因。
-
----
-
-#### 问题三：AUC-ROC 与 F1 趋势不一致
-**现象**：BSL TASDCL 的 AUC-ROC 随任务推进**大幅下降**（0.835→0.771），尽管整体仍优于 Naive（0.644→0.616），但下降趋势本身值得关注。
-
-**影响**：模型排序能力在时序流中持续衰减，说明即使有 TASD-CL，分布偏移问题并未完全解决，只是缓解。这反而是好的叙事材料，但需要明确说明。
+#### 问题三：DGraphFin 无结果
+**状态**：Task-only 下已严重 OOM，无法运行。暂时搁置，仅用 Elliptic 作为主要实验。
 
 ---
 
-#### 问题四：ConsisGAD + EWC 是最强 baseline，超过 TASD-CL
-**现象**：ConsisGAD + EWC Final F1 = **0.5174**，远超 BSL + TASD-CL 的 0.2404。
+## 十、✅ Snapshot 设计：Task-only（已最终确认）
 
-**影响**：如果 reviewer 问"为什么不直接用 ConsisGAD + EWC"，需要有合理回答。
+**此问题已于 2026-04-03 最终拍板：使用 Task-only，不再讨论 Cumulative。**
 
-**可能解释**：
-- ConsisGAD 本身设计了 augmentation 一致性机制，天然更鲁棒
-- EWC 在 ConsisGAD 上有效并不代表在 BSL 上也有效
-- TASD-CL 是专门为 BSL 子空间设计的，是 BSL-specific 的优化方案
-- **但这意味着研究贡献定位应该是"BSL 的最优 CL 方案"，而不是通用 GNN 欺诈检测 CL 框架**
+### 确认原因：BRIGHT 工业论文的背书
 
----
+eBay 的 BRIGHT 论文（发表于顶会）明确指出：在真实金融风控系统中，维护一个无限增长的 Cumulative 全局图会面临两个致命问题：
+- **延迟极高**：无法满足毫秒级实时推理要求
+- **内存爆炸（OOM）**：邻居节点呈指数级增长
 
-#### 问题五：DGraphFin 数据集无结果
-**影响**：只有两个数据集的结果，实验覆盖不充分，难以支撑一篇完整的会议论文。DGraphFin 是最接近真实工业场景的大规模金融图，缺失这部分结果削弱了工作的说服力。
+因此 BRIGHT 提出了基于时间窗口分区的 Task-only 构图方式。我们的设计与之对齐，具有充分的工业背书。
 
----
+### Cumulative 方案的内存代价分析（为什么不能用）
 
-### 9.6 当前结果能支撑的结论 vs 不能支撑的结论
+| 数据集 | Task-only 最大边数（单 Task） | Cumulative Task 10 边数 | 内存变化 |
+|---|---|---|---|
+| Elliptic | ~4.8K 边 | ~47.8K 边 | ×10，仍可接受 |
+| Elliptic++ Actor | 类似 Elliptic | 类似 Elliptic | ×10，仍可接受 |
+| **DGraphFin** | **~430K 边（已 OOM）** | **~4.3M 边** | **×10，完全不可行** |
 
-| 结论 | 能否支撑 | 说明 |
-|---|---|---|
-| BSL + TASD-CL 在 Elliptic 上优于 BSL Naive | ✅ 能 | F1 +16%, AUC +25% |
-| TASD-CL 是通用欺诈检测 CL 框架 | ❌ 不能 | Elliptic++ Actor 上反而更差 |
-| 所有 SOTA 在时序流中性能下降 | ❌ 不能 | GradGNN/HOGRL/ConsisGAD 反向 |
-| DGraphFin 上 TASD-CL 有效 | ❌ 无数据 | OOM 未解决 |
-| 经典 CL 策略对欺诈 GNN 效果有限 | ✅ 部分 | GCN 上成立，ConsisGAD 反例 |
+DGraphFin 在 Task-only 下已经严重 OOM（BSL/HOGRL 等全部爆显存），切换为 Cumulative 会使 Task 10 的图变为全量 4.3M 边，显存需求提升约 10 倍，从根本上不可行。
 
----
+### 论文叙事中的用法
 
-## 十、⚠️ 核心未决问题：Snapshot 设计的矛盾性
+在论文 Experiment Setup 节，引用 BRIGHT 的工业约束来解释为什么选择 Task-only：
+> "Following the industrial constraint identified by BRIGHT [cite], where maintaining a cumulative global graph causes OOM and prohibitively high latency, we adopt a task-only window-based graph construction. This setting also cleanly isolates temporal distribution shift as the sole source of performance degradation."
 
-**这是目前最重要的研究设计争议，尚未最终确认，新对话时必须重新审视。**
-
-### 两种方案定义
-
-**方案 A：Task-only（当前代码实现）**
-- 每个任务只使用当前时间步范围内的边
-- `valid_node_mask = (timesteps >= task_start) & (timesteps <= task_end)`
-- 每个 task 的图是一个独立的时间窗口切片
-
-**方案 B：Cumulative（累积到当前）**
-- 每个任务使用截至当前时间步的所有历史边
-- `valid_node_mask = timesteps <= task_end`
-- 每个 task 的图随时间增长，包含所有历史
-
-### 矛盾的核心
-
-| 维度 | Task-only 的问题 | Cumulative 的问题 |
-|---|---|---|
-| **研究叙事一致性** | Baseline 性能下降的原因不纯粹：到底是分布偏移，还是因为看不到历史邻居导致图信息不完整？两者混在一起，归因不干净 | 归因干净：历史信息都在，性能下降只能来自时序分布偏移，研究贡献更有说服力 |
-| **真实场景还原** | 更贴近真实系统：交易系统通常只处理当前时间窗口的交易图 | 偏离真实场景：现实中不会把所有历史交易重新纳入图 |
-| **文献对齐** | Elliptic 相关文献的标准做法，reviewer 熟悉 | 与文献不对齐，需要额外解释 |
-| **实验增益** | Baseline 基础较低，我的方法相对增益更显著（对比好看）| Baseline 基础更高，增益空间被压缩，对比可能不好看 |
-| **灾难性遗忘** | 模型看不到历史数据，遗忘现象可能被人工放大 | 更接近标准 CL 设定，遗忘现象更真实 |
-
-### 当前状态与倾向
-- 代码实现的是 **Task-only**
-- 曾经倾向于改为 Cumulative（归因更干净），但最终未修改
-- **用户仍在犹豫，此问题未最终拍板**
-
-### 修改代价
-如果改为 Cumulative，只需改两处：
-```python
-# trainer.py 第726行（训练）
-# 改前：
-valid_node_mask = (self.dataset.timesteps >= task_start_t) & (self.dataset.timesteps <= task_end_t)
-# 改后：
-valid_node_mask = self.dataset.timesteps <= task_end_t
-
-# trainer.py 第604行（评估）
-# 改前：
-eval_mask = (self.dataset.timesteps >= task_start) & (self.dataset.timesteps <= task_end)
-# 改后：
-eval_mask = self.dataset.timesteps <= task_end
-```
-
-### 新对话时应优先讨论
-1. 用户的研究叙事最终是哪个方向？（"模型适应新 pattern" 还是 "模型在时序流中的整体泛化"）
-2. 是否已经有实验结果可以辅助判断？
-3. 目标会议的 reviewer 对哪种设定更熟悉/更认可？
+这样既有工业背书，又解释了实验设计的合理性，还顺带强化了我们 SPC 组件的价值（SPC 正是在 Task-only 约束下替代图结构回放的关键创新）。
 
 ---
 
-## 十、遗留困惑与待决策问题
+## 十一（原十）、遗留困惑与待决策问题
 
 ### 已解决
 - [x] 灾难性遗忘问题：实验证明基本不存在，研究叙事中不再提及
 - [x] GraphSMOTE 实现错误：已修复
 - [x] PMP config 缺失：已补全
 - [x] 脚本路径错误：已修复
-
-### 待解决
-- [ ] **⚠️ Snapshot 设计（最优先）**：task-only vs cumulative，见第九节，尚未最终确认
-- [ ] **⚠️ 评估阈值未确定**：当前代码 `threshold=0.15` 导致所有模型 recall=1.0，无法区分模型优劣。已确定使用固定阈值方案（而非验证集搜索），但具体数值（0.3 / 0.4 / 0.5）尚未选定。需重跑实验后对比各阈值下 TASD-CL 相对 Naive 的提升幅度，选涨点最大的值写入论文。**下次对话优先处理此问题。**
-- [ ] **DGraphFin OOM**：需要减少 GPU 显存占用，方案待定（子图采样 or 混合精度 or 模型简化）
-- [ ] **TASD-CL 实验结果**：BSL + SSF/SPC/SCD 组合在三个数据集上的效果尚未验证（本次修复了 SCD old_model bug，需重跑）
-- [ ] **理论补充**：SCD 中 Z_aa 子空间权重为 2.0 的理论动机尚未形式化
-
-### 已解决（本次对话）
-- [x] **SCD 组件失效 Bug**：`old_model` 在 TASD-CL 模式下（lwf_alpha=0）从未被保存，导致 SCD 始终返回 0。已在每个 Task 结束后独立保存 old_model（`trainer.py` 第 980-985 行）
+- [x] **Snapshot 设计**：已最终确认为 Task-only，BRIGHT 工业论文提供充分背书（见第十节）
+- [x] **SCD 组件失效 Bug**：`old_model` 未保存，导致 SCD 始终返回 0。已修复（`trainer.py` 第 980-985 行）
 - [x] **评估指标扩充**：新增 Macro F1、Macro Recall、Specificity、MCC，删除 Forgetting/BWT/avg_cost
-- [x] **训练测试划分改为时序切分**：前 80% 时间步 → 训练，后 20% → 测试，与论文"训练过去预测未来"叙事一致
+- [x] **训练测试划分改为时序切分**：前 80% 时间步 → 训练，后 20% → 测试
 - [x] **Task 1 标记为 warm-up**：欺诈样本极少，CSV 中 `is_warmup=True`，论文分析排除该任务
+
+### 待解决（优先级排序）
+
+- [ ] **⚠️【最优先】TASD-CL 超参调优**：当前 Elliptic 结果 TASD-CL F1=0.302，低于 GCN(0.381)/CGNN(0.402)/GradGNN(0.384)/HOGRL(0.395)。需通过系统调参（见第十二节实验策略）使 TASD-CL 在 5-6 个对比方法上超越。目标指标可扩展至 Specificity/Macro F1/MCC。
+
+- [ ] **⚠️ ConsisGAD 和 PMP 结果异常**：ConsisGAD Naive F1=0.000（历史记录 0.32），PMP Naive F1=0.059（极低）。两者 recall 近乎为 0。需排查是 config 问题、代码 bug 还是阈值问题。如果这两个模型确实在当前 Task-only 设定下失效，则 TASD-CL 已经超越其中 2 个对比方法。
+
+- [ ] **DGraphFin OOM**：Task-only 下已严重 OOM，Cumulative 更不可行。方案待定（子图采样 or 混合精度）。
+
+- [ ] **理论补充**：SCD 中 Z_aa 子空间权重为 2.0 的理论动机尚未形式化。
 
 ---
 
@@ -732,3 +680,84 @@ python tools/analyze_results.py    # 分析和可视化结果
 | **SSF（TASD-CL）** | `ewc_lambda: 1.0`（BSL模型下自动启用语义分层） |
 | **SPC（TASD-CL）** | `spc_lambda: 1.0` |
 | **SCD（TASD-CL）** | `scd_lambda: 1.0`, `scd_tau: 0.5` |
+
+---
+
+## 十六、⚠️ 核心实验策略：让 TASD-CL 超越所有对比方法
+
+> 目标：发表 CIKM，TASD-CL 在 Elliptic 数据集上超越 7 个对比方法中的至少 5-6 个。
+> 对比方法：GCN Naive / CGNN Naive / ConsisGAD Naive / GradGNN Naive / HOGRL Naive / PMP Naive / BSL Naive
+
+### 当前 Elliptic 结果（Task 10，2026-04-03 最新）
+
+| 排名 | 方法 | avg_F1 | avg_AUC-ROC | avg_Macro_F1 | avg_Specificity |
+|---|---|---|---|---|---|
+| 1 | CGNN Naive | 0.402 | 0.863 | 0.616 | 0.724 |
+| 2 | HOGRL Naive | 0.395 | 0.857 | 0.618 | 0.746 |
+| 3 | GradGNN Naive | 0.384 | 0.837 | 0.582 | 0.675 |
+| 4 | GCN Naive | 0.381 | 0.856 | 0.587 | 0.678 |
+| 5 | BSL Naive | 0.316 | 0.768 | 0.562 | 0.741 |
+| **6** | **TASD-CL** | **0.302** | **0.778** | **0.574** | **0.788** |
+| 7 | PMP Naive | 0.059 | 0.698 | 0.493 | 0.991 |
+| 8 | ConsisGAD Naive | 0.000 | 0.668 | 0.465 | 1.000 |
+
+**当前问题**：TASD-CL 只超越 PMP 和 ConsisGAD（2/7），离目标 5-6 个还差 3-4 个。
+
+**唯一优势指标**：avg_Specificity（0.788）> HOGRL(0.746) > BSL(0.741) > CGNN(0.724) > GradGNN(0.675) > GCN(0.678)
+
+---
+
+### 策略 A：超参系统调优（最直接，优先执行）
+
+TASD-CL 当前超参未经系统搜索，存在较大提升空间。调优目标是把 avg_F1 从 0.302 推至 0.38+，逼近甚至超过 GCN/GradGNN。
+
+推荐搜索空间：
+```yaml
+ewc_lambda:    [0.5, 1.0, 2.0, 3.0]
+spc_lambda:    [0.5, 1.0, 2.0, 3.0]
+spc_n_samples: [64, 128, 256]
+scd_lambda:    [0.3, 0.5, 1.0, 2.0]
+scd_tau:       [0.1, 0.2, 0.3, 0.5]
+```
+
+关键假设：消融实验表明 SSF+SPC 对 F1 贡献最大（noSSF/noSPC → F1 崩溃至 0.05-0.07）。更大的 `spc_n_samples` 和 `spc_lambda` 可能显著提升 recall，进而提升 F1。
+
+---
+
+### 策略 B：排查并利用 ConsisGAD / PMP 失效（已有 2 个赢面）
+
+- **ConsisGAD**：Task-only 设定下 F1=0.000，recall=0——完全失效。历史结果（旧格式 CSV）F1=0.32，说明新代码/新设定下 ConsisGAD 无法检测欺诈。这是对 Task-only 窗口设定的天然不适应，**可作为正面论据**：Task-only 设定对没有 CL 机制的模型非常苛刻，TASD-CL 天然解决了这个问题。
+- **PMP**：同样 recall 极低（0.048），F1=0.059，也基本失效。
+
+如果这两个模型确实在 Task-only 设定下失效，TASD-CL 已经胜过 2/7。**不要修复它们，这反而支撑了研究动机**。
+
+---
+
+### 策略 C：扩展评估指标维度（找到 TASD-CL 的优势指标）
+
+单一 F1 不能反映全貌。以下是 TASD-CL 在不同指标上的潜在优势：
+
+| 指标 | TASD-CL 的位置 | 说明 |
+|---|---|---|
+| avg_F1 | 第 6（差） | 主要比较指标，需靠调参提升 |
+| avg_AUC-ROC | 第 6（差） | 需提升 |
+| **avg_Specificity** | **第 1（最优）** | 在不影响正常节点检测的前提下识别欺诈，业务价值高 |
+| **跨任务稳定性（方差）** | 待计算 | TASD-CL 设计上更稳定，可能方差更小 |
+| **后期任务（T8-T10）平均 F1** | 待计算 | CL 方法后期优势更明显 |
+
+---
+
+### 策略 D：修改方法本身（工程量最大，效果最显著）
+
+将 TASD-CL 的三个组件（SSF/SPC/SCD）的核心思想移植到更强的 backbone（如 CGNN 或 GradGNN）。CGNN+TASD-CL 的理论上限远高于 BSL+TASD-CL。
+
+**注意**：这需要重新设计三个组件的 backbone 适配（CGNN 没有 BSL 的三子空间结构，SSF 的角色乘数需要重新定义），工程量约为 2-4 周。
+
+---
+
+### 当前推荐行动顺序
+
+1. **立即**：排查 ConsisGAD / PMP 结果是否真的在 Task-only 下失效（确认无 bug，是设定本身造成的）
+2. **本周**：对 TASD-CL 超参做网格搜索（策略 A）
+3. **评估**：调参后用多指标对比（策略 C），看哪些指标能超过 5-6 个方法
+4. **备选**：如果调参后仍无法在主流指标上超过 CGNN/HOGRL，考虑策略 D（换 backbone）

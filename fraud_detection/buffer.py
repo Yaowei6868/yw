@@ -112,28 +112,29 @@ class SubspacePrototypeBuffer:
     """
     TASD-CL Component B: Subspace Prototype Condensation (SPC) Buffer.
 
-    在 BSL 的三个解耦子空间 (Z_na, Z_aa, Z_nn) 中分别存储 Gaussian 原型，
-    而非原始节点索引。这解决了图回放的根本缺陷：历史节点的图上下文（邻居）
-    已随时间步变化，直接回放原始节点会引入结构噪声。
-    原型仅依赖子空间表示，与图结构无关。
+    支持可变子空间数量（n_subspaces），兼容：
+      - BSL backbone：n_subspaces=3 (Z_na, Z_aa, Z_nn)，sub_dim = hidden_dim // 3
+      - CGNN backbone：n_subspaces=2 (x_nor, x_abnor)，sub_dim = hidden_dim
 
-    存储代价: O(T * 2 * 3 * sub_dim)  vs  O(K * feat_dim) 原始回放
+    存储代价: O(T * 2 * n_subspaces * sub_dim)，远小于原始图回放。
     """
 
-    def __init__(self, sub_dim: int):
+    def __init__(self, sub_dim: int, n_subspaces: int = 3):
         """
-        sub_dim: BSL 每个子空间的维度 = hidden_dim // 3
+        sub_dim:     每个子空间的向量维度
+        n_subspaces: 子空间数量（BSL=3, CGNN=2）
         """
-        self.sub_dim = sub_dim
-        # prototypes[task_id][class_id][subspace_k] = (mu: Tensor[sub_dim], sigma: Tensor[sub_dim])
-        self.prototypes = {}
+        self.sub_dim     = sub_dim
+        self.n_subspaces = n_subspaces
+        # prototypes[task_id][class_id][subspace_k] = (mu, sigma)
+        self.prototypes  = {}
 
     def add_task_prototypes(self, task_id: int, z_parts: list, y_labels):
         """
         在任务 t 结束后，计算并存储各子空间的类原型。
 
-        z_parts: list of 3 tensors, each [n_train, sub_dim], BSL get_sub_features() 的输出
-        y_labels: [n_train] 训练节点标签 (0/1, 不含 -1)
+        z_parts:  list of n_subspaces tensors，每个 [n_train, sub_dim]
+        y_labels: [n_train] 训练节点标签 (0/1)
         """
         self.prototypes[task_id] = {}
         for cls in [0, 1]:
@@ -141,10 +142,10 @@ class SubspacePrototypeBuffer:
             if cls_mask.sum() < 2:
                 continue
             self.prototypes[task_id][cls] = {}
-            for k in range(3):
-                z_cls = z_parts[k][cls_mask].detach().cpu()  # [n_cls, sub_dim]
-                mu = z_cls.mean(dim=0)                        # [sub_dim]
-                sigma = z_cls.std(dim=0).clamp(min=1e-6)      # [sub_dim]
+            for k in range(self.n_subspaces):
+                z_cls = z_parts[k][cls_mask].detach().cpu()
+                mu    = z_cls.mean(dim=0)
+                sigma = z_cls.std(dim=0).clamp(min=1e-6)
                 self.prototypes[task_id][cls][k] = (mu, sigma)
 
     def sample_prototypes(self, n_per_class_per_task: int = 32, device: str = 'cpu'):
@@ -152,7 +153,7 @@ class SubspacePrototypeBuffer:
         从所有已存储任务的原型中采样，生成回放用的合成 z 向量。
 
         返回:
-            z_replay: [N_replay, hidden_dim]  (3 个子空间拼接)
+            z_replay: [N_replay, n_subspaces * sub_dim]  各子空间拼接
             y_replay: [N_replay]  (0/1 标签)
         若缓冲区为空则返回 (None, None)。
         """
@@ -162,16 +163,16 @@ class SubspacePrototypeBuffer:
         z_list, y_list = [], []
         for task_id, task_protos in self.prototypes.items():
             for cls, cls_protos in task_protos.items():
-                if len(cls_protos) < 3:
+                if len(cls_protos) < self.n_subspaces:
                     continue
                 subspace_samples = []
-                for k in range(3):
+                for k in range(self.n_subspaces):
                     mu, sigma = cls_protos[k]
-                    mu = mu.to(device)
+                    mu    = mu.to(device)
                     sigma = sigma.to(device)
-                    eps = torch.randn(n_per_class_per_task, self.sub_dim, device=device)
+                    eps   = torch.randn(n_per_class_per_task, self.sub_dim, device=device)
                     subspace_samples.append(mu.unsqueeze(0) + eps * sigma.unsqueeze(0))
-                # 拼接三个子空间 -> [n, hidden_dim]
+                # 拼接所有子空间 -> [n, n_subspaces * sub_dim]
                 z_list.append(torch.cat(subspace_samples, dim=1))
                 y_list.append(torch.full(
                     (n_per_class_per_task,), cls, dtype=torch.long, device=device
