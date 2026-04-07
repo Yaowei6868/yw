@@ -1,0 +1,45 @@
+name: elliptic_EWC_CGNN
+
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  input_dim: ???
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: elliptic
+  model: cgnn
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/cgnn/elliptic_EWC_CGNN
+
+  num_epochs_per_task: 50
+  task_schedule:
+    - [1, 5]
+    - [6, 10]
+    - [11, 15]
+    - [16, 20]
+    - [21, 25]
+    - [26, 30]
+    - [31, 35]
+    - [36, 40]
+    - [41, 45]
+    - [46, 49]
+
+  # Standard EWC（无语义分层，对所有参数统一约束）
+  ewc_lambda: 1.0
+  spc_lambda: 0.0
+  spc_n_samples: 0
+  scd_lambda: 0.0
+  scd_tau: 0.5
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0
+  threshold: 0.5

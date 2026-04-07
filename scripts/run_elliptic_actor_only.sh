@@ -1,6 +1,8 @@
 #!/bin/bash
-# run_elliptic_actor_only.sh — 仅运行 Elliptic++ Actor 数据集的所有主对比实验
-# 用法: nohup bash run_elliptic_actor_only.sh > logs/elliptic_actor_main.log 2>&1 &
+# run_elliptic_actor_only.sh — Elliptic++ Actor 数据集全量实验
+# 用法: nohup bash scripts/run_elliptic_actor_only.sh > logs/elliptic_actor.log 2>&1 &
+#
+# 包含：Naive 基线 × 7 + CL 基线 × 3 + TASD-CL × 1 + 消融 × 3 = 共 14 个实验
 
 set -euo pipefail
 
@@ -9,7 +11,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOG_DIR="${ROOT_DIR}/logs"
 PYTHON="${PYTHON:-python}"
 NUM_TASKS=10
-COMPLETE_ROWS=$((NUM_TASKS + 1))
+COMPLETE_ROWS=$((NUM_TASKS + 1))   # 10 task rows + 1 header
 
 mkdir -p "${LOG_DIR}"
 SKIP_COUNT=0; RUN_COUNT=0; FAIL_COUNT=0
@@ -65,35 +67,35 @@ run_experiment() {
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  DATASET: Elliptic++ Actor — 主对比实验                   ║"
-echo "║  $(date '+%Y-%m-%d %H:%M:%S')                           ║"
+echo "║  DATASET: Elliptic++ Actor — 全量实验                    ║"
+printf "║  %-56s║\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo "╚══════════════════════════════════════════════════════════╝"
 
-echo ""; echo "  ── [A] 传统静态基线 ─────────────────────────────────"
+# ── [A] Naive 基线（7 个）────────────────────────────────────
+echo ""; echo "  ── [A] Naive 基线 ──────────────────────────────────"
 run_experiment "configs/traditional/elliptic++actor_Naive_GCN.yaml"
-run_experiment "configs/traditional/elliptic++actor_Naive_GAT.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor/elliptic++actor_Naive_BSL.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor/elliptic++actor_Naive_CGNN.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor/elliptic++actor_Naive_ConsisGAD.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor/elliptic++actor_Naive_Grad.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor/elliptic++actor_Naive_HOGRL.yaml"
+run_experiment "configs/fraud_sota/elliptic++actor/elliptic++actor_Naive_PMP.yaml"
 
-echo ""; echo "  ── [B] CL 经典基线 ───────────────────────────────────"
-run_experiment "configs/cl_baselines/elliptic++actor_EWC_GCN.yaml"
-run_experiment "configs/cl_baselines/elliptic++actor_LwF_GCN.yaml"
-run_experiment "configs/cl_baselines/elliptic++actor_ER_GCN.yaml"
+# ── [B] 通用 CL 基线（EWC / LwF / ER on CGNN，3 个）───────────
+echo ""; echo "  ── [B] 通用 CL 基线 (CGNN backbone) ──────────────"
+run_experiment "configs/ours/cl_on_cgnn/elliptic++actor_EWC_CGNN.yaml"
+run_experiment "configs/ours/cl_on_cgnn/elliptic++actor_LwF_CGNN.yaml"
+run_experiment "configs/ours/cl_on_cgnn/elliptic++actor_ER_CGNN.yaml"
 
-echo ""; echo "  ── [C] 不平衡处理变体 ────────────────────────────────"
-run_experiment "configs/imbalanced/elliptic++actor_Naive_GraphSMOTE.yaml"
+# ── [C] TASD-CL 主方法（1 个）──────────────────────────────────
+echo ""; echo "  ── [C] TASD-CL (Ours) ─────────────────────────────"
+run_experiment "configs/ours/main/elliptic++actor_TASDCL_CGNN.yaml"
 
-echo ""; echo "  ── [D] 核心 SOTA 欺诈检测模型 ───────────────────────"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_HOGRL.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_CGNN.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_ConsisGAD.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_Grad.yaml"
-run_experiment "configs/PMP/elliptic++actor_Naive_PMP.yaml"
-run_experiment "configs/PMP/elliptic++actor_CL_PMP.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_BSL.yaml"
-
-echo ""; echo "  ── [E] BSL CL 策略对比 ───────────────────────────────"
-
-echo ""; echo "  ── [F] TASD-CL (Ours) + 消融 ────────────────────────"
-run_experiment "configs/ours/main/elliptic++actor_TASDCL_BSL.yaml"
+# ── [D] 消融实验（3 个）─────────────────────────────────────────
+echo ""; echo "  ── [D] 消融实验 (noSSF / noSPC / noSCD) ──────────"
+run_experiment "configs/ours/ablation/elliptic++actor_TASDCL_noSSF_CGNN.yaml"
+run_experiment "configs/ours/ablation/elliptic++actor_TASDCL_noSPC_CGNN.yaml"
+run_experiment "configs/ours/ablation/elliptic++actor_TASDCL_noSCD_CGNN.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""
