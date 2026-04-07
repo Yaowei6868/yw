@@ -1,0 +1,43 @@
+nohup: ignoring input
+
+╔══════════════════════════════════════════════════════════╗
+║  Elliptic++ Actor 第四轮调参                             ║
+║  2026-04-07 07:44:34                                     ║
+╚══════════════════════════════════════════════════════════╝
+
+  ── TASD-CL 第四轮：hidden_dim / threshold / tau ───
+
+  ┌──────────────────────────────────────────────────────┐
+  │ RUN: actor_tune_TASDCL_nospc_h256                     │
+  └──────────────────────────────────────────────────────┘
+  [FAIL] actor_tune_TASDCL_nospc_h256
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/home/yw/fraud_detection/models.py", line 306, in forward
+        merged_col    = x_nor[col] + x_abnor[col]  # [E, out_dim]
+                        ~~~~~~~~~~~^~~~~~~~~~~~~~
+    torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.37 GiB. GPU 0 has a total capacity of 23.56 GiB of which 745.25 MiB is free. Including non-PyTorch memory, this process has 22.82 GiB memory in use. Of the allocated memory 21.39 GiB is allocated by PyTorch, and 1.12 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+  ┌──────────────────────────────────────────────────────┐
+  │ RUN: actor_tune_TASDCL_nospc_h256_lr5                 │
+  └──────────────────────────────────────────────────────┘
+  [FAIL] actor_tune_TASDCL_nospc_h256_lr5
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/home/yw/fraud_detection/models.py", line 306, in forward
+        merged_col    = x_nor[col] + x_abnor[col]  # [E, out_dim]
+                        ~~~~~~~~~~~^~~~~~~~~~~~~~
+    torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.37 GiB. GPU 0 has a total capacity of 23.56 GiB of which 745.25 MiB is free. Including non-PyTorch memory, this process has 22.82 GiB memory in use. Of the allocated memory 21.39 GiB is allocated by PyTorch, and 1.12 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+  ┌──────────────────────────────────────────────────────┐
+  │ RUN: actor_tune_TASDCL_nospc_th4                      │
+  └──────────────────────────────────────────────────────┘
+  [DONE] actor_tune_TASDCL_nospc_th4                  1m37s
+
+  ┌──────────────────────────────────────────────────────┐
+  │ RUN: actor_tune_TASDCL_nospc_tau3                     │
+  └──────────────────────────────────────────────────────┘
+  [DONE] actor_tune_TASDCL_nospc_tau3                 1m34s
+
+══════════════════════════════════════════════════════════
+  完成: 07:48:47 | 耗时: 0h4m13s
+  ✅ 已完成: 2  ⏭ 已跳过: 0  ❌ 失败: 2
+══════════════════════════════════════════════════════════
