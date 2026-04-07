@@ -627,6 +627,14 @@ class Trainer:
         self.model.eval()
         y_train = self.dataset.y[task_train_idx.cpu()].to(self.device)
 
+        # 欺诈样本不足时跳过，避免极度不平衡任务（如 actor Task 1）污染原型库
+        fraud_count = (y_train == 1).sum().item()
+        spc_min_fraud = self.config.train.get('spc_min_fraud', 0)
+        if spc_min_fraud > 0 and fraud_count < spc_min_fraud:
+            print(f"   [SPC] Task {task_id+1} 跳过原型提取：欺诈样本不足 ({fraud_count} < {spc_min_fraud})")
+            self.model.train()
+            return
+
         with torch.no_grad():
             if self.config.train.model == 'bsl':
                 _, z_all, _ = self.model(snapshot_data, return_stats=True)
