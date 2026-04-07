@@ -18,108 +18,117 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 🔧 Task 2 动态权重: 21.43 -> 截断为: 10.00
    -> Focal Loss Alpha: 0.9091
 📉 Snapshot 节点数: 160370 (仅当前任务)
+   [SPC] Task 2 子空间原型已更新 | 欺诈: 1436, 正常: 30774
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
 *** CL Metrics @ Task 2 ***
-  [Binary]  F1: 0.1674 | Precision: 0.1168 | Recall: 0.3905
-  [Macro]   Macro-F1: 0.5523 | Macro-Recall: 0.6432
-  [Ranking] AUC-ROC: 0.6432 | AUC-PR: 0.0701
-  [Balance] G-Mean: 0.5872 | Specificity: 0.8959 | MCC: 0.1601
+  [Binary]  F1: 0.1183 | Precision: 0.0697 | Recall: 0.5011
+  [Macro]   Macro-F1: 0.4948 | Macro-Recall: 0.6412
+  [Ranking] AUC-ROC: 0.6262 | AUC-PR: 0.0676
+  [Balance] G-Mean: 0.6197 | Specificity: 0.7812 | MCC: 0.1191
 
 --- Training on Task 3 (Timesteps: 2 to 2) ---
 🔧 Task 3 动态权重: 12.37 -> 截断为: 10.00
    -> Focal Loss Alpha: 0.9091
 📉 Snapshot 节点数: 100261 (仅当前任务)
+   [SPC] Task 3 子空间原型已更新 | 欺诈: 1642, 正常: 20312
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
 *** CL Metrics @ Task 3 ***
-  [Binary]  F1: 0.2792 | Precision: 0.2221 | Recall: 0.4603
-  [Macro]   Macro-F1: 0.6097 | Macro-Recall: 0.6838
-  [Ranking] AUC-ROC: 0.6842 | AUC-PR: 0.1445
-  [Balance] G-Mean: 0.6404 | Specificity: 0.9072 | MCC: 0.2594
+  [Binary]  F1: 0.2064 | Precision: 0.1337 | Recall: 0.5712
+  [Macro]   Macro-F1: 0.5419 | Macro-Recall: 0.6829
+  [Ranking] AUC-ROC: 0.6874 | AUC-PR: 0.1372
+  [Balance] G-Mean: 0.6679 | Specificity: 0.7946 | MCC: 0.1964
 
 --- Training on Task 4 (Timesteps: 3 to 3) ---
 🔧 Task 4 动态权重: 7.97 -> 截断为: 7.97
    -> Focal Loss Alpha: 0.8885
 📉 Snapshot 节点数: 96398 (仅当前任务)
+   [SPC] Task 4 子空间原型已更新 | 欺诈: 1760, 正常: 14031
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
 *** CL Metrics @ Task 4 ***
-  [Binary]  F1: 0.3166 | Precision: 0.2582 | Recall: 0.4744
-  [Macro]   Macro-F1: 0.6246 | Macro-Recall: 0.6882
-  [Ranking] AUC-ROC: 0.6885 | AUC-PR: 0.1694
-  [Balance] G-Mean: 0.6495 | Specificity: 0.9019 | MCC: 0.2817
+  [Binary]  F1: 0.2445 | Precision: 0.1609 | Recall: 0.6012
+  [Macro]   Macro-F1: 0.5539 | Macro-Recall: 0.6891
+  [Ranking] AUC-ROC: 0.7051 | AUC-PR: 0.1676
+  [Balance] G-Mean: 0.6778 | Specificity: 0.7769 | MCC: 0.2176
 
 --- Training on Task 5 (Timesteps: 4 to 4) ---
 🔧 Task 5 动态权重: 6.70 -> 截断为: 6.70
    -> Focal Loss Alpha: 0.8702
 📉 Snapshot 节点数: 148489 (仅当前任务)
+   [SPC] Task 5 子空间原型已更新 | 欺诈: 5421, 正常: 36346
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
 *** CL Metrics @ Task 5 ***
-  [Binary]  F1: 0.3579 | Precision: 0.3095 | Recall: 0.4859
-  [Macro]   Macro-F1: 0.6446 | Macro-Recall: 0.6960
-  [Ranking] AUC-ROC: 0.6963 | AUC-PR: 0.2027
-  [Balance] G-Mean: 0.6597 | Specificity: 0.9062 | MCC: 0.3151
+  [Binary]  F1: 0.2765 | Precision: 0.1880 | Recall: 0.6080
+  [Macro]   Macro-F1: 0.5679 | Macro-Recall: 0.6917
+  [Ranking] AUC-ROC: 0.7159 | AUC-PR: 0.1979
+  [Balance] G-Mean: 0.6820 | Specificity: 0.7755 | MCC: 0.2350
 
 --- Training on Task 6 (Timesteps: 5 to 5) ---
 🔧 Task 6 动态权重: 3.81 -> 截断为: 3.81
    -> Focal Loss Alpha: 0.7919
 📉 Snapshot 节点数: 72045 (仅当前任务)
+   [SPC] Task 6 子空间原型已更新 | 欺诈: 2319, 正常: 8825
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
 *** CL Metrics @ Task 6 ***
-  [Binary]  F1: 0.3828 | Precision: 0.3512 | Recall: 0.4822
-  [Macro]   Macro-F1: 0.6529 | Macro-Recall: 0.6938
-  [Ranking] AUC-ROC: 0.6940 | AUC-PR: 0.2310
-  [Balance] G-Mean: 0.6575 | Specificity: 0.9055 | MCC: 0.3280
+  [Binary]  F1: 0.3082 | Precision: 0.2191 | Recall: 0.6099
+  [Macro]   Macro-F1: 0.5782 | Macro-Recall: 0.6883
+  [Ranking] AUC-ROC: 0.7191 | AUC-PR: 0.2302
+  [Balance] G-Mean: 0.6799 | Specificity: 0.7667 | MCC: 0.2447
 
 --- Training on Task 7 (Timesteps: 6 to 6) ---
 🔧 Task 7 动态权重: 6.63 -> 截断为: 6.63
    -> Focal Loss Alpha: 0.8690
 📉 Snapshot 节点数: 106824 (仅当前任务)
+   [SPC] Task 7 子空间原型已更新 | 欺诈: 3553, 正常: 23563
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
 *** CL Metrics @ Task 7 ***
-  [Binary]  F1: 0.3906 | Precision: 0.3551 | Recall: 0.4873
-  [Macro]   Macro-F1: 0.6548 | Macro-Recall: 0.6939
-  [Ranking] AUC-ROC: 0.6940 | AUC-PR: 0.2352
-  [Balance] G-Mean: 0.6595 | Specificity: 0.9004 | MCC: 0.3300
+  [Binary]  F1: 0.3166 | Precision: 0.2239 | Recall: 0.6184
+  [Macro]   Macro-F1: 0.5787 | Macro-Recall: 0.6875
+  [Ranking] AUC-ROC: 0.7214 | AUC-PR: 0.2358
+  [Balance] G-Mean: 0.6803 | Specificity: 0.7567 | MCC: 0.2469
 
 --- Training on Task 8 (Timesteps: 7 to 7) ---
 🔧 Task 8 动态权重: 9.60 -> 截断为: 9.60
    -> Focal Loss Alpha: 0.9057
 📉 Snapshot 节点数: 138779 (仅当前任务)
+   [SPC] Task 8 子空间原型已更新 | 欺诈: 2811, 正常: 26989
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
 *** CL Metrics @ Task 8 ***
-  [Binary]  F1: 0.3811 | Precision: 0.3401 | Recall: 0.4859
-  [Macro]   Macro-F1: 0.6480 | Macro-Recall: 0.6893
-  [Ranking] AUC-ROC: 0.6895 | AUC-PR: 0.2260
-  [Balance] G-Mean: 0.6561 | Specificity: 0.8927 | MCC: 0.3180
+  [Binary]  F1: 0.3084 | Precision: 0.2161 | Recall: 0.6111
+  [Macro]   Macro-F1: 0.5721 | Macro-Recall: 0.6802
+  [Ranking] AUC-ROC: 0.7202 | AUC-PR: 0.2277
+  [Balance] G-Mean: 0.6734 | Specificity: 0.7493 | MCC: 0.2361
 
 --- Training on Task 9 (Timesteps: 8 to 8) ---
 🔧 Task 9 动态权重: 22.55 -> 截断为: 10.00
    -> Focal Loss Alpha: 0.9091
 📉 Snapshot 节点数: 166309 (仅当前任务)
+   [SPC] Task 9 子空间原型已更新 | 欺诈: 1674, 正常: 37750
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
 *** CL Metrics @ Task 9 ***
-  [Binary]  F1: 0.3594 | Precision: 0.3151 | Recall: 0.4864
-  [Macro]   Macro-F1: 0.6358 | Macro-Recall: 0.6857
-  [Ranking] AUC-ROC: 0.6858 | AUC-PR: 0.2096
-  [Balance] G-Mean: 0.6538 | Specificity: 0.8849 | MCC: 0.3009
+  [Binary]  F1: 0.2910 | Precision: 0.2017 | Recall: 0.6138
+  [Macro]   Macro-F1: 0.5616 | Macro-Recall: 0.6779
+  [Ranking] AUC-ROC: 0.7194 | AUC-PR: 0.2122
+  [Balance] G-Mean: 0.6718 | Specificity: 0.7420 | MCC: 0.2254
 
 --- Training on Task 10 (Timesteps: 9 to 9) ---
 🔧 Task 10 动态权重: 12.37 -> 截断为: 10.00
    -> Focal Loss Alpha: 0.9091
 📉 Snapshot 节点数: 89214 (仅当前任务)
+   [SPC] Task 10 子空间原型已更新 | 欺诈: 1682, 正常: 20798
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
 *** CL Metrics @ Task 10 ***
-  [Binary]  F1: 0.3407 | Precision: 0.3003 | Recall: 0.4556
-  [Macro]   Macro-F1: 0.6274 | Macro-Recall: 0.6724
-  [Ranking] AUC-ROC: 0.6725 | AUC-PR: 0.1978
-  [Balance] G-Mean: 0.6290 | Specificity: 0.8892 | MCC: 0.2811
+  [Binary]  F1: 0.2723 | Precision: 0.1886 | Recall: 0.5721
+  [Macro]   Macro-F1: 0.5532 | Macro-Recall: 0.6595
+  [Ranking] AUC-ROC: 0.6876 | AUC-PR: 0.1987
+  [Balance] G-Mean: 0.6441 | Specificity: 0.7469 | MCC: 0.2021
 All tasks trained.
-Total time: 20.63s
+Total time: 90.80s

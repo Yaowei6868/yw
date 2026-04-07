@@ -9,10 +9,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
 *** CL Metrics @ Task 1 [WARM-UP, 仅供参考] ***
-  [Binary]  F1: 0.0000 | Precision: 0.0000 | Recall: 0.0000
-  [Macro]   Macro-F1: 0.4980 | Macro-Recall: 0.5000
-  [Ranking] AUC-ROC: 0.5000 | AUC-PR: 0.0081
-  [Balance] G-Mean: 0.0000 | Specificity: 1.0000 | MCC: 0.0000
+  [Binary]  F1: 0.0311 | Precision: 0.0178 | Recall: 0.1226
+  [Macro]   Macro-F1: 0.4996 | Macro-Recall: 0.5337
+  [Ranking] AUC-ROC: 0.5320 | AUC-PR: 0.0093
+  [Balance] G-Mean: 0.3404 | Specificity: 0.9448 | MCC: 0.0263
 
 --- Training on Task 2 (Timesteps: 1 to 1) ---
 🔧 Task 2 动态权重: 21.43 -> 截断为: 10.00
@@ -21,10 +21,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
 *** CL Metrics @ Task 2 ***
-  [Binary]  F1: 0.1674 | Precision: 0.1168 | Recall: 0.3905
-  [Macro]   Macro-F1: 0.5523 | Macro-Recall: 0.6432
-  [Ranking] AUC-ROC: 0.6432 | AUC-PR: 0.0701
-  [Balance] G-Mean: 0.5872 | Specificity: 0.8959 | MCC: 0.1601
+  [Binary]  F1: 0.0828 | Precision: 0.0447 | Recall: 0.7932
+  [Macro]   Macro-F1: 0.3997 | Macro-Recall: 0.6788
+  [Ranking] AUC-ROC: 0.6826 | AUC-PR: 0.0412
+  [Balance] G-Mean: 0.6689 | Specificity: 0.5643 | MCC: 0.0970
 
 --- Training on Task 3 (Timesteps: 2 to 2) ---
 🔧 Task 3 动态权重: 12.37 -> 截断为: 10.00
@@ -33,10 +33,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
 *** CL Metrics @ Task 3 ***
-  [Binary]  F1: 0.2792 | Precision: 0.2221 | Recall: 0.4603
-  [Macro]   Macro-F1: 0.6097 | Macro-Recall: 0.6838
-  [Ranking] AUC-ROC: 0.6842 | AUC-PR: 0.1445
-  [Balance] G-Mean: 0.6404 | Specificity: 0.9072 | MCC: 0.2594
+  [Binary]  F1: 0.1701 | Precision: 0.1025 | Recall: 0.7973
+  [Macro]   Macro-F1: 0.4640 | Macro-Recall: 0.7096
+  [Ranking] AUC-ROC: 0.7639 | AUC-PR: 0.1335
+  [Balance] G-Mean: 0.7030 | Specificity: 0.6218 | MCC: 0.1745
 
 --- Training on Task 4 (Timesteps: 3 to 3) ---
 🔧 Task 4 动态权重: 7.97 -> 截断为: 7.97
@@ -45,10 +45,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
 *** CL Metrics @ Task 4 ***
-  [Binary]  F1: 0.3166 | Precision: 0.2582 | Recall: 0.4744
-  [Macro]   Macro-F1: 0.6246 | Macro-Recall: 0.6882
-  [Ranking] AUC-ROC: 0.6885 | AUC-PR: 0.1694
-  [Balance] G-Mean: 0.6495 | Specificity: 0.9019 | MCC: 0.2817
+  [Binary]  F1: 0.1990 | Precision: 0.1210 | Recall: 0.7854
+  [Macro]   Macro-F1: 0.4710 | Macro-Recall: 0.6951
+  [Ranking] AUC-ROC: 0.7598 | AUC-PR: 0.1667
+  [Balance] G-Mean: 0.6883 | Specificity: 0.6048 | MCC: 0.1789
 
 --- Training on Task 5 (Timesteps: 4 to 4) ---
 🔧 Task 5 动态权重: 6.70 -> 截断为: 6.70
@@ -57,10 +57,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
 *** CL Metrics @ Task 5 ***
-  [Binary]  F1: 0.3579 | Precision: 0.3095 | Recall: 0.4859
-  [Macro]   Macro-F1: 0.6446 | Macro-Recall: 0.6960
-  [Ranking] AUC-ROC: 0.6963 | AUC-PR: 0.2027
-  [Balance] G-Mean: 0.6597 | Specificity: 0.9062 | MCC: 0.3151
+  [Binary]  F1: 0.2285 | Precision: 0.1417 | Recall: 0.7801
+  [Macro]   Macro-F1: 0.4847 | Macro-Recall: 0.6919
+  [Ranking] AUC-ROC: 0.7510 | AUC-PR: 0.1822
+  [Balance] G-Mean: 0.6855 | Specificity: 0.6037 | MCC: 0.1920
 
 --- Training on Task 6 (Timesteps: 5 to 5) ---
 🔧 Task 6 动态权重: 3.81 -> 截断为: 3.81
@@ -69,10 +69,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
 *** CL Metrics @ Task 6 ***
-  [Binary]  F1: 0.3828 | Precision: 0.3512 | Recall: 0.4822
-  [Macro]   Macro-F1: 0.6529 | Macro-Recall: 0.6938
-  [Ranking] AUC-ROC: 0.6940 | AUC-PR: 0.2310
-  [Balance] G-Mean: 0.6575 | Specificity: 0.9055 | MCC: 0.3280
+  [Binary]  F1: 0.2552 | Precision: 0.1634 | Recall: 0.7638
+  [Macro]   Macro-F1: 0.4896 | Macro-Recall: 0.6759
+  [Ranking] AUC-ROC: 0.7379 | AUC-PR: 0.2139
+  [Balance] G-Mean: 0.6695 | Specificity: 0.5880 | MCC: 0.1861
 
 --- Training on Task 7 (Timesteps: 6 to 6) ---
 🔧 Task 7 动态权重: 6.63 -> 截断为: 6.63
@@ -81,10 +81,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
 *** CL Metrics @ Task 7 ***
-  [Binary]  F1: 0.3906 | Precision: 0.3551 | Recall: 0.4873
-  [Macro]   Macro-F1: 0.6548 | Macro-Recall: 0.6939
-  [Ranking] AUC-ROC: 0.6940 | AUC-PR: 0.2352
-  [Balance] G-Mean: 0.6595 | Specificity: 0.9004 | MCC: 0.3300
+  [Binary]  F1: 0.2675 | Precision: 0.1717 | Recall: 0.7597
+  [Macro]   Macro-F1: 0.4967 | Macro-Recall: 0.6752
+  [Ranking] AUC-ROC: 0.7372 | AUC-PR: 0.2261
+  [Balance] G-Mean: 0.6694 | Specificity: 0.5908 | MCC: 0.1928
 
 --- Training on Task 8 (Timesteps: 7 to 7) ---
 🔧 Task 8 动态权重: 9.60 -> 截断为: 9.60
@@ -93,10 +93,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
 *** CL Metrics @ Task 8 ***
-  [Binary]  F1: 0.3811 | Precision: 0.3401 | Recall: 0.4859
-  [Macro]   Macro-F1: 0.6480 | Macro-Recall: 0.6893
-  [Ranking] AUC-ROC: 0.6895 | AUC-PR: 0.2260
-  [Balance] G-Mean: 0.6561 | Specificity: 0.8927 | MCC: 0.3180
+  [Binary]  F1: 0.2748 | Precision: 0.1777 | Recall: 0.7532
+  [Macro]   Macro-F1: 0.5069 | Macro-Recall: 0.6810
+  [Ranking] AUC-ROC: 0.7302 | AUC-PR: 0.2212
+  [Balance] G-Mean: 0.6760 | Specificity: 0.6089 | MCC: 0.2039
 
 --- Training on Task 9 (Timesteps: 8 to 8) ---
 🔧 Task 9 动态权重: 22.55 -> 截断为: 10.00
@@ -105,10 +105,10 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
 *** CL Metrics @ Task 9 ***
-  [Binary]  F1: 0.3594 | Precision: 0.3151 | Recall: 0.4864
-  [Macro]   Macro-F1: 0.6358 | Macro-Recall: 0.6857
-  [Ranking] AUC-ROC: 0.6858 | AUC-PR: 0.2096
-  [Balance] G-Mean: 0.6538 | Specificity: 0.8849 | MCC: 0.3009
+  [Binary]  F1: 0.3375 | Precision: 0.2469 | Recall: 0.6244
+  [Macro]   Macro-F1: 0.6035 | Macro-Recall: 0.7121
+  [Ranking] AUC-ROC: 0.7226 | AUC-PR: 0.2063
+  [Balance] G-Mean: 0.7037 | Specificity: 0.7999 | MCC: 0.2841
 
 --- Training on Task 10 (Timesteps: 9 to 9) ---
 🔧 Task 10 动态权重: 12.37 -> 截断为: 10.00
@@ -117,9 +117,9 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
 *** CL Metrics @ Task 10 ***
-  [Binary]  F1: 0.3407 | Precision: 0.3003 | Recall: 0.4556
-  [Macro]   Macro-F1: 0.6274 | Macro-Recall: 0.6724
-  [Ranking] AUC-ROC: 0.6725 | AUC-PR: 0.1978
-  [Balance] G-Mean: 0.6290 | Specificity: 0.8892 | MCC: 0.2811
+  [Binary]  F1: 0.2473 | Precision: 0.1560 | Recall: 0.7577
+  [Macro]   Macro-F1: 0.4813 | Macro-Recall: 0.6671
+  [Ranking] AUC-ROC: 0.7206 | AUC-PR: 0.1980
+  [Balance] G-Mean: 0.6597 | Specificity: 0.5764 | MCC: 0.1820
 All tasks trained.
-Total time: 20.63s
+Total time: 180.68s
