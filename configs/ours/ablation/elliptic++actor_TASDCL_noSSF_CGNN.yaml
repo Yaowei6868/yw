@@ -28,10 +28,14 @@ train:
     - [8]
     - [9]
 
+  cgnn_lambda: 0.0
+  cgnn_beta: 0.0
+
   ewc_lambda: 0.0       # ← 关闭 SSF（即关闭 EWC 参数约束）
 
   spc_lambda: 0.1
   spc_n_samples: 128
+  spc_min_fraud: 10
 
   scd_lambda: 0.5
   scd_tau: 0.5

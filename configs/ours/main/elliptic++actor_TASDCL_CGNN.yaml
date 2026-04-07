@@ -28,12 +28,17 @@ train:
     - [8]
     - [9]
 
+  # ── CGNN 辅助损失（actor 极度不平衡下关闭，避免收敛失败）────────────────
+  cgnn_lambda: 0.0
+  cgnn_beta: 0.0
+
   # ── Component A: SSF (语义分层 EWC) ──────────────────────────────────────
   ewc_lambda: 1.0
 
   # ── Component B: SPC (子空间原型凝缩回放) ────────────────────────────────
-  spc_lambda: 0.1       # 最优调参值（同 Elliptic）
-  spc_n_samples: 128    # 最优调参值（同 Elliptic）
+  spc_lambda: 0.1
+  spc_n_samples: 128
+  spc_min_fraud: 10     # 欺诈样本<10 的任务跳过原型提取
 
   # ── Component C: SCD (置信度过滤子空间蒸馏) ──────────────────────────────
   scd_lambda: 0.5

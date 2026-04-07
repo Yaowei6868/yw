@@ -28,6 +28,9 @@ train:
     - [8]
     - [9]
 
+  cgnn_lambda: 0.0
+  cgnn_beta: 0.0
+
   # Standard ER (Experience Replay)
   ewc_lambda: 0.0
   spc_lambda: 0.0
