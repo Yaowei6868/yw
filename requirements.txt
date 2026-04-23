@@ -6,3 +6,4 @@ torch_geometric
 scikit-learn
 networkx
 omegaconf
+tensorboard
