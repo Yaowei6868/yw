@@ -1,4 +1,4 @@
-name: elliptic++actor_TASDCL_BSL
+name: elliptic_actor_TASDCL_BSL
 
 model:
   input_dim: ???
@@ -14,7 +14,7 @@ train:
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/bsl/elliptic++actor_TASDCL_BSL
+  save_dir: weights/bsl/elliptic_actor_TASDCL_BSL
 
   num_epochs_per_task: 30   # actor数据集与其他BSL actor配置一致
   task_schedule:

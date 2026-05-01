@@ -80,10 +80,10 @@ printf "║  %-56s║\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 echo ""; echo "  ── TASD-CL 第四轮：hidden_dim / threshold / tau ───"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_h256.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_h256_lr5.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_th4.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_tau3.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_h256.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_h256_lr5.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_th4.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_tau3.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""

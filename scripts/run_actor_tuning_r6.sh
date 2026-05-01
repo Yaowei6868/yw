@@ -74,10 +74,10 @@ printf "║  %-56s║\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 echo ""; echo "  ── mf10 + ewc/scd/lr/lam 变体 ─────────────────────"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_spc_mf10_ewc2.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_spc_mf10_scd1.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_spc_mf10_lr5.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_spc_mf10_lam05.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_spc_mf10_ewc2.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_spc_mf10_scd1.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_spc_mf10_lr5.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_spc_mf10_lam05.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""

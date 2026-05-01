@@ -75,13 +75,13 @@ echo "╚═══════════════════════�
 
 # ── TASD-CL nospc 系列调参（7个）────────────────────────────
 echo ""; echo "  ── TASD-CL nospc 系列 ─────────────────────────────"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_ewc2.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_ewc3.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_scd1.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_scd02.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_ewc2_scd1.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_lr5.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_nospc_e40.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_ewc2.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_ewc3.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_scd1.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_scd02.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_ewc2_scd1.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_lr5.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_nospc_e40.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""

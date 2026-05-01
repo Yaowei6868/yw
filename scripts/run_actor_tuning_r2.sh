@@ -75,17 +75,17 @@ echo "╚═══════════════════════�
 
 # ── TASD-CL 30ep 调参（4个）──────────────────────────────────
 echo ""; echo "  ── TASD-CL 30ep 调参 ──────────────────────────────"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_noaux_e30.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_noaux_e30_nospc.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_noaux_e30_ewc2.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_noaux_e30_scd1.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_noaux_e30.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_noaux_e30_nospc.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_noaux_e30_ewc2.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_noaux_e30_scd1.yaml"
 
 # ── GradGNN 深度调参（4个）───────────────────────────────────
 echo ""; echo "  ── GradGNN 深度调参 ────────────────────────────────"
-run_experiment "configs/tuning/elliptic++actor/grad/grad_e100.yaml"
-run_experiment "configs/tuning/elliptic++actor/grad/grad_e50_lr5.yaml"
-run_experiment "configs/tuning/elliptic++actor/grad/grad_e50_h256.yaml"
-run_experiment "configs/tuning/elliptic++actor/grad/grad_e50_ds50.yaml"
+run_experiment "configs/tuning/elliptic_actor/grad/grad_e100.yaml"
+run_experiment "configs/tuning/elliptic_actor/grad/grad_e50_lr5.yaml"
+run_experiment "configs/tuning/elliptic_actor/grad/grad_e50_h256.yaml"
+run_experiment "configs/tuning/elliptic_actor/grad/grad_e50_ds50.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""

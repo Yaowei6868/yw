@@ -175,29 +175,29 @@ echo "║  DATASET 2/3 — Elliptic++ Actor                          ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 section "[A] 传统静态基线"
-run_experiment "configs/traditional/elliptic++actor_Naive_GCN.yaml"
-run_experiment "configs/traditional/elliptic++actor_Naive_GAT.yaml"
+run_experiment "configs/traditional/elliptic_actor_Naive_GCN.yaml"
+run_experiment "configs/deprecated/elliptic_actor_Naive_GAT.yaml"
 
 section "[B] 持续学习经典基线"
-run_experiment "configs/cl_baselines/elliptic++actor_EWC_GCN.yaml"
-run_experiment "configs/cl_baselines/elliptic++actor_LwF_GCN.yaml"
-run_experiment "configs/cl_baselines/elliptic++actor_ER_GCN.yaml"  # ER-GNN
+run_experiment "configs/deprecated/cl_baselines/elliptic_actor_EWC_GCN.yaml"
+run_experiment "configs/deprecated/cl_baselines/elliptic_actor_LwF_GCN.yaml"
+run_experiment "configs/deprecated/cl_baselines/elliptic_actor_ER_GCN.yaml"  # ER-GNN
 
 section "[C] 不平衡处理变体"
-run_experiment "configs/imbalanced/elliptic++actor_Naive_GraphSMOTE.yaml"
+run_experiment "configs/deprecated/imbalanced/elliptic_actor_Naive_GraphSMOTE.yaml"
 
 section "[D] 核心 SOTA 欺诈检测模型"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_HOGRL.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_CGNN.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_ConsisGAD.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_Grad.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_PMP.yaml"
-run_experiment "configs/fraud_sota/elliptic++actor_Naive_BSL.yaml"
+run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_HOGRL.yaml"
+run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_CGNN.yaml"
+run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_ConsisGAD.yaml"
+run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_Grad.yaml"
+run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_PMP.yaml"
+run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_BSL.yaml"
 
 section "[E] BSL CL 策略对比"
 
 section "[F] 我们的方法 + 消融"
-run_experiment "configs/ours/main/elliptic++actor_TASDCL_BSL.yaml"
+run_experiment "configs/ours/main/elliptic_actor_TASDCL_BSL.yaml"
 
 # ======================================================================
 # ★ PART 3: DGraphFin Dataset

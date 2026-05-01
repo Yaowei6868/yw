@@ -74,9 +74,9 @@ printf "║  %-56s║\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo "╚══════════════════════════════════════════════════════════╝"
 
 echo ""; echo "  ── SPC + spc_min_fraud 过滤 ────────────────────────"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_spc_mf10.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_spc_mf20.yaml"
-run_experiment "configs/tuning/elliptic++actor/tasdcl/tasdcl_spc_mf50.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_spc_mf10.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_spc_mf20.yaml"
+run_experiment "configs/tuning/elliptic_actor/tasdcl/tasdcl_spc_mf50.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""
