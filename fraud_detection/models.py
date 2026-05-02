@@ -266,18 +266,19 @@ class CGNNLayer(MessagePassing):
     """
     Strict implementation of AAAI-25 CGNN Layer.
     Ref: Context-aware Graph Neural Network for Graph-based Fraud Detection
-    Extended for TASD-CL: caches per-node denoising attention weight (node_alpha)
-    for use in Subspace-Conditioned Distillation (SCD).
+    Adapted for TASD-CL: replaces hard channel splitting with a learned
+    complementary semantic decomposition and caches routing statistics for
+    continual-learning components.
     """
     def __init__(self, in_dim, out_dim):
         super(CGNNLayer, self).__init__(aggr='add')
         self.in_dim = in_dim
         self.out_dim = out_dim
-        assert in_dim % 2 == 0, "Input dimension must be divisible by 2 for splitting."
-        self.half_dim = in_dim // 2
+        # Learn semantic decomposition instead of binding roles to channel positions.
         # 1. 语义分解 (Eq. 2)
-        self.lin_nor = nn.Linear(self.half_dim, out_dim)
-        self.lin_abnor = nn.Linear(self.half_dim, out_dim)
+        self.gate_lin = nn.Linear(in_dim, in_dim)
+        self.context_proj = nn.Linear(in_dim, out_dim)
+        self.risk_proj = nn.Linear(in_dim, out_dim)
         # 2. 去噪注意力 (Eq. 4)
         self.att_lin = nn.Linear(out_dim, out_dim)
         self.att_vec = nn.Linear(out_dim, 1, bias=False)
@@ -286,17 +287,18 @@ class CGNNLayer(MessagePassing):
         # TASD-CL 缓存
         self._cached_x_nor = None
         self._cached_x_abnor = None
+        self._cached_gate = None
         self._cached_node_alpha = None  # [N] per-node 平均注意力权重
 
     def forward(self, x, edge_index):
         edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
 
-        x_left = x[:, :self.half_dim]
-        x_right = x[:, self.half_dim:]
-        x_nor   = self.lin_nor(x_left)      # [N, out_dim]
-        x_abnor = self.lin_abnor(x_right)   # [N, out_dim]
+        gate = torch.sigmoid(self.gate_lin(x))
+        x_nor = self.context_proj(gate * x)              # context-aware subspace
+        x_abnor = self.risk_proj((1.0 - gate) * x)       # risk-aware subspace
         self._cached_x_nor   = x_nor
         self._cached_x_abnor = x_abnor
+        self._cached_gate = gate
 
         row, col = edge_index
 
@@ -376,6 +378,10 @@ class CGNN(nn.Module):
     def get_node_alpha(self, data) -> torch.Tensor:
         """返回当前 forward 缓存的 per-node 平均注意力权重 [N]。"""
         return self.conv._cached_node_alpha
+
+    def get_node_gate(self, data=None) -> torch.Tensor:
+        """Return the cached semantic gate from the latest forward pass."""
+        return self.conv._cached_gate
 
     def replay_forward(self, z_nor: torch.Tensor, z_abnor: torch.Tensor,
                        alpha_val: float = 0.5) -> torch.Tensor:

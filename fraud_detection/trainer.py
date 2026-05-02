@@ -77,14 +77,15 @@ BSL_PARAM_GROUPS = {
     'classifier':   0.3,   # 最终分类器 (最低): 任务特定层
 }
 
-# CGNN 参数组：att_vec/att_lin 决定正常/异常子空间路由，语义地位等同于 BSL 的 att_vec
+# CGNN parameter groups for SSF role multipliers.
 CGNN_PARAM_GROUPS = {
-    'conv.att_vec':    3.0,   # 去噪注意力路由向量 (最高): 决定欺诈/正常特征权重
-    'conv.att_lin':    2.5,   # 去噪注意力线性层
-    'conv.lin_nor':    2.0,   # 正常子空间投影
-    'conv.lin_abnor':  2.0,   # 异常子空间投影
-    'lin_in':          0.5,   # 输入映射 (低)
-    'classifier':      0.3,   # 分类头 (最低)
+    'conv.att_vec':      3.0,
+    'conv.att_lin':      2.5,
+    'conv.gate_lin':     2.5,
+    'conv.context_proj': 2.0,
+    'conv.risk_proj':    2.0,
+    'lin_in':            0.5,
+    'classifier':        0.3,
 }
 
 # 模型映射表
@@ -269,6 +270,39 @@ class Trainer:
         loss_consis = torch.mean(torch.where(y_train == 0, loss_0, loss_1))
         
         return loss_csd, loss_consis
+
+    def _cgnn_semantic_loss(self, x_nor, x_abnor, y, train_idx, node_gate=None):
+        """
+        Semantic regularization for the adapted CGNN backbone.
+        Keeps the two subspaces decoupled, aligns their dominance with node labels,
+        and prevents the learned gate from collapsing to a single branch.
+        """
+        x_nor_train = x_nor[train_idx]
+        x_abnor_train = x_abnor[train_idx]
+
+        nor_norm = F.normalize(x_nor_train, p=2, dim=1)
+        abnor_norm = F.normalize(x_abnor_train, p=2, dim=1)
+        cos_sim = (nor_norm * abnor_norm).sum(dim=1)
+        loss_decouple = (cos_sim ** 2).mean()
+
+        y_train = y[train_idx]
+        norm_n = torch.norm(x_nor_train, p=2, dim=1)
+        norm_a = torch.norm(x_abnor_train, p=2, dim=1)
+        margin = 0.5
+        loss_normal = F.relu(norm_a - norm_n + margin)
+        loss_fraud = F.relu(norm_n - norm_a + margin)
+        loss_role = torch.mean(torch.where(y_train == 0, loss_normal, loss_fraud))
+
+        loss_gate = torch.tensor(0.0, device=x_nor.device)
+        if node_gate is not None:
+            gate_train = node_gate[train_idx]
+            gate_score = gate_train.mean(dim=1).clamp(min=1e-6, max=1.0 - 1e-6)
+            gate_target = (1.0 - y_train.float()).to(gate_score.device)
+            loss_gate_role = F.binary_cross_entropy(gate_score, gate_target)
+            loss_gate_balance = (gate_train.mean() - 0.5).pow(2)
+            loss_gate = loss_gate_role + 0.1 * loss_gate_balance
+
+        return loss_decouple, loss_role, loss_gate
 
     def _sup_contrastive_loss(self, features, labels, temperature=0.07):
         labels = labels.view(-1)
@@ -772,7 +806,7 @@ class Trainer:
                 clip_cap = 10.0 
             
             clipped_weight = max(min(raw_ratio, clip_cap), 1.0) 
-            print(f"🔧 Task {task_id+1} 动态权重: {raw_ratio:.2f} -> 截断为: {clipped_weight:.2f}")
+            print(f"[INFO] Task {task_id + 1} class weight: {raw_ratio:.2f} -> clipped: {clipped_weight:.2f}")
             
             dynamic_alpha = clipped_weight / (1.0 + clipped_weight)
             print(f"   -> Focal Loss Alpha: {dynamic_alpha:.4f}")
@@ -787,7 +821,7 @@ class Trainer:
             snapshot_data = copy.copy(self.dataset)
             snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
             snapshot_data = snapshot_data.to(self.device) 
-            print(f"📉 Snapshot 节点数: {valid_node_mask.sum().item()} (仅当前任务)")
+            print(f"[INFO] Snapshot nodes: {valid_node_mask.sum().item()} (current task only)")
 
             is_ewc_mode = self.ewc_lambda > 0.0
             is_lwf_mode = self.lwf_alpha > 0.0
@@ -956,8 +990,12 @@ class Trainer:
                     if self.config.train.model == 'cgnn':
                         w_csd = self.config.train.get('cgnn_lambda', 0.1)
                         w_consist = self.config.train.get('cgnn_beta', 0.1)
-                        l_csd, l_consist = self._cgnn_loss(x_nor, x_abnor, self.dataset.y.to(self.device), current_train_idx)
-                        cgnn_loss = w_csd * l_csd + w_consist * l_consist
+                        w_gate = self.config.train.get('cgnn_gate_lambda', 0.05)
+                        node_gate = self.model.get_node_gate()
+                        l_csd, l_consist, l_gate = self._cgnn_semantic_loss(
+                            x_nor, x_abnor, self.dataset.y.to(self.device), current_train_idx, node_gate=node_gate
+                        )
+                        cgnn_loss = w_csd * l_csd + w_consist * l_consist + w_gate * l_gate
 
                         # [TASD-CL / CGNN] Component B: SPC 子空间原型回放
                         if self.spc_lambda > 0 and self.spc_buffer is not None \
@@ -1052,6 +1090,7 @@ class Trainer:
                 if self.config.train.model == 'cgnn':
                     self.model.conv._cached_x_nor = None
                     self.model.conv._cached_x_abnor = None
+                    self.model.conv._cached_gate = None
                     self.model.conv._cached_node_alpha = None
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)
@@ -1074,6 +1113,7 @@ class Trainer:
                 if self.config.train.model == 'cgnn':
                     self.model.conv._cached_x_nor = None
                     self.model.conv._cached_x_abnor = None
+                    self.model.conv._cached_gate = None
                     self.model.conv._cached_node_alpha = None
                 self.old_model = copy.deepcopy(self.model)
                 self.old_model.to(self.config.train.device)

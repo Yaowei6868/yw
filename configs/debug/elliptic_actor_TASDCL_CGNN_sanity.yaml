@@ -1,0 +1,35 @@
+name: elliptic_actor_TASDCL_CGNN_sanity
+
+model:
+  input_dim: ???
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+
+train:
+  dataset: elliptic_actor
+  model: cgnn
+  device: cpu
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 1
+  save_dir: weights/debug/elliptic_actor_TASDCL_CGNN_sanity
+
+  num_epochs_per_task: 1
+  task_schedule:
+    - [0]
+
+  cgnn_lambda: 0.0
+  cgnn_beta: 0.0
+  cgnn_gate_lambda: 0.05
+
+  ewc_lambda: 0.0
+  spc_lambda: 0.0
+  spc_n_samples: 0
+  spc_min_fraud: 0
+  scd_lambda: 0.0
+  scd_tau: 0.5
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0
+  threshold: 0.5
