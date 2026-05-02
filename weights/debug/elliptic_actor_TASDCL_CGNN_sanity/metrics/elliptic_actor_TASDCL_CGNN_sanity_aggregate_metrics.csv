@@ -1,0 +1,2 @@
+task_id,time_cost,avg_f1,avg_precision,avg_recall,avg_macro_f1,avg_macro_recall,avg_auc_roc,avg_auc_pr,avg_g_mean,avg_specificity,avg_mcc,cl_mode,is_warmup
+1,11.269452095031738,0.0,0.0,0.0,0.4979645134034872,0.5,0.5,0.008108935128518973,0.0,1.0,0.0,Naive,True
