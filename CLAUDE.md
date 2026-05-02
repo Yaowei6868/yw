@@ -1,7 +1,77 @@
 # fraud-detection-gnn 项目说明（CLAUDE.md）
 
-> 最后更新：2026-04-08
+> 最后更新：2026-05-01
 > 本文件供 Claude 在新对话中快速恢复上下文。请在每次重要进展后更新。
+
+---
+
+## 2026-05-02 最新权威状态
+
+### 论文命名边界
+- 我们的方法：**TASD-CL (ours)**，基于我们提出的 **TASD semantic decomposition backbone**。
+- `CGNN / HOGRL / GradGNN / BSL / PMP`：fraud detection baselines。
+- `GCN + EWC / GCN + LwF / GCN + ER`：generic continual learning baselines on ordinary GCN。
+- 不把 EWC/LwF/ER 加在 TASD backbone 上作为主文 baseline；也不把 `CGNN + EWC/LwF/ER` 放入主表。
+- 主表方法名去掉 `Naive` 后缀，例如 `BSL Naive` 写作 `BSL`。
+
+### Elliptic 主实验已闭合
+
+三项主指标：AUC-ROC / G-Mean / MacroF1。当前 Elliptic 主表如下：
+
+| Method | AUC-ROC | G-Mean | MacroF1 |
+|---|---:|---:|---:|
+| **TASD-CL (ours)** | **0.8713** | **0.7874** | **0.6521** |
+| CGNN | 0.8631 | 0.7750 | 0.6163 |
+| GCN + EWC | 0.8585 | 0.7724 | 0.6086 |
+| HOGRL | 0.8565 | 0.7596 | 0.6176 |
+| GCN | 0.8562 | 0.7644 | 0.5870 |
+| GCN + ER | 0.8511 | 0.7599 | 0.6265 |
+| GCN + LwF | 0.8399 | 0.7055 | 0.5683 |
+| GradGNN | 0.8373 | 0.7364 | 0.5822 |
+| BSL | 0.7681 | 0.5952 | 0.5621 |
+| PMP | 0.6976 | 0.1768 | 0.4932 |
+
+结论：Elliptic 上 TASD-CL 在 AUC-ROC、G-Mean、MacroF1 三个主指标上均为第一，可以支撑主文核心 claim。
+
+### Elliptic 消融结论
+
+| Variant | AUC-ROC | G-Mean | MacroF1 | F1 |
+|---|---:|---:|---:|---:|
+| TASD-CL Full | 0.8713 | 0.7874 | 0.6521 | 0.4347 |
+| w/o SSF | 0.8638 | 0.7747 | 0.6213 | 0.4042 |
+| w/o SPC | 0.8620 | 0.7650 | 0.6582 | 0.4308 |
+| w/o SCD | 0.8564 | 0.0000 | 0.4651 | 0.0000 |
+
+写作注意：不能写“三个组件在所有指标上一致提升”。稳妥写法是：SCD 最关键；SSF 提供稳定性；SPC 有助于 AUC/G-Mean 和 structure-free preservation，但在 MacroF1/F1 上存在 trade-off。
+
+### Actor 当前状态与下一步
+
+Actor 已有完整结果：
+- GCN / CGNN / HOGRL / GradGNN / BSL
+- TASD-CL
+- TASD-CL w/o SSF / w/o SPC / w/o SCD
+
+Actor 当前缺口：
+- `PMP`
+- `GCN + EWC`
+- `GCN + LwF`
+- `GCN + ER`
+
+已新增正式配置：
+- `configs/ours/cl_on_gcn/elliptic_actor_EWC_GCN.yaml`
+- `configs/ours/cl_on_gcn/elliptic_actor_LwF_GCN.yaml`
+- `configs/ours/cl_on_gcn/elliptic_actor_ER_GCN.yaml`
+
+已更新脚本：
+- `scripts/run_elliptic_actor_final.sh`
+
+服务器运行命令：
+
+```bash
+git pull origin main
+FORCE_RERUN=1 nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2>&1 &
+tail -f logs/elliptic_actor_final.log
+```
 
 ---
 
@@ -193,7 +263,8 @@ L_total = L_task
 |---|---|---|---|
 | GCN | 通用 GNN 基线 | ✅ 完整 | |
 | HOGRL | 欺诈 SOTA | ✅ 完整 | DGraphFin OOM |
-| CGNN | 欺诈 SOTA + **backbone** | ✅ 完整 | DGraphFin OOM |
+| CGNN | 欺诈 SOTA baseline | ✅ 完整 | DGraphFin OOM |
+| TASD | 我们提出的语义分解 backbone | ✅ 完整 | TASD-CL 的基础 backbone |
 | BSL | 欺诈 SOTA（旧 backbone） | ✅ 完整 | DGraphFin OOM |
 | GradGNN | 欺诈 SOTA | ✅ 完整 | |
 | PMP | 欺诈 SOTA | ✅ 完整 | config 在 `configs/fraud_sota/{dataset}/` |
@@ -208,14 +279,14 @@ L_total = L_task
 
 ```
 configs/
-  traditional/               # GCN Naive（三个数据集）
-  fraud_sota/                # 欺诈 SOTA baseline（Naive）
+  traditional/               # GCN baseline（三个数据集）
+  fraud_sota/                # 欺诈检测 baseline
     elliptic/                # BSL/CGNN/GradGNN/HOGRL/PMP
     elliptic++actor/
     dgraphfin/
-  ours/                      # 我们的方法
-    main/                    # CGNN + TASD-CL（主实验）
-    cl_on_cgnn/              # CGNN + EWC/LwF/ER（CL 基线对比）
+  ours/                      # 我们的方法与 CL 对照
+    main/                    # TASD-CL（主实验）
+    cl_on_gcn/               # GCN + EWC/LwF/ER（通用 CL baseline）
     ablation/                # noSSF / noSPC / noSCD
   deprecated/                # 已废弃，不再运行
   tuning/                    # 调参用（不进入正式论文表格）
@@ -236,23 +307,61 @@ nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2
 
 ## 八、当前实验进度
 
-### 已完成运行（有结果）
+### 8.1 Elliptic 主文主结果
+
+**论文主表口径：**
+
+| 类别 | 论文方法名 | 状态 | 备注 |
+|---|---|---|---|
+| Ours | TASD-CL | ✅ 完成 | 基于我们提出的 TASD backbone |
+| Fraud baseline | CGNN | ✅ 完成 | 去掉 Naive 后缀 |
+| Fraud baseline | HOGRL | ✅ 完成 | 去掉 Naive 后缀 |
+| Fraud baseline | GradGNN | ✅ 完成 | 去掉 Naive 后缀 |
+| Fraud baseline | BSL | ✅ 完成 | 去掉 Naive 后缀 |
+| Fraud baseline | PMP | ✅ 完成 | 去掉 Naive 后缀 |
+| Graph baseline | GCN | ✅ 完成 | ordinary graph learning |
+| Generic CL baseline | GCN + EWC | ✅ 完成 | EWC 加在 GCN 上 |
+| Generic CL baseline | GCN + LwF | ✅ 完成 | LwF 加在 GCN 上 |
+| Generic CL baseline | GCN + ER | ✅ 完成 | ER 加在 GCN 上 |
+
+**当前进度：Elliptic 主文主表已闭合。**
+
+**三项主指标：**
+
+| Method | AUC-ROC | G-Mean | MacroF1 |
+|---|---:|---:|---:|
+| **TASD-CL (ours)** | **0.8713** | **0.7874** | **0.6521** |
+| CGNN | 0.8631 | 0.7750 | 0.6163 |
+| GCN + EWC | 0.8585 | 0.7724 | 0.6086 |
+| HOGRL | 0.8565 | 0.7596 | 0.6176 |
+| GCN | 0.8562 | 0.7644 | 0.5870 |
+| GCN + ER | 0.8511 | 0.7599 | 0.6265 |
+| GCN + LwF | 0.8399 | 0.7055 | 0.5683 |
+| GradGNN | 0.8373 | 0.7364 | 0.5822 |
+| BSL | 0.7681 | 0.5952 | 0.5621 |
+| PMP | 0.6976 | 0.1768 | 0.4932 |
+
+**结论：**
+- Elliptic 上 TASD-CL 在 AUC-ROC、G-Mean、MacroF1 三个主指标均排名第一。
+- 写作时必须明确：CGNN/HOGRL/GradGNN/BSL/PMP 是 fraud detection baselines；GCN + EWC/LwF/ER 是 generic CL baselines；TASD-CL 是我们的方法。
+
+### 8.2 已完成但属于主文之外/补充的结果
+
 | 模型 | 数据集 | 策略 | 状态 |
 |---|---|---|---|
-| GCN | Elliptic | Naive | ✅ 完成 |
-| BSL | Elliptic | Naive | ✅ 完成 |
-| CGNN | Elliptic | Naive | ✅ 完成 |
-| **CGNN** | **Elliptic** | **TASD-CL（最优 lam01_n128）** | ✅ **完成（AUC=0.8713，全面第一）** |
-| CGNN | Elliptic | 消融：noSSF/noSPC/noSCD | ✅ 完成（见 9.3 节）|
-| GradGNN | Elliptic | Naive | ✅ 完成 |
-| HOGRL | Elliptic | Naive | ✅ 完成 |
-| PMP | Elliptic | Naive | ✅ 完成 |
+| TASD-CL | Elliptic | 消融：`noSSF / noSPC / noSCD` | ✅ 完成 |
+| PMP | Elliptic | baseline | ✅ 完成 |
+| BSL | Elliptic | `TASDCL_BSL` + `noSSF/noSPC/noSCD` | ✅ 完成（补充用） |
+| Actor | Elliptic++ Actor | baseline / TASD-CL / 消融 | ✅ 部分已有，仍需补齐最终主表 |
 
-### 待运行（论文所需）
+### 8.3 当前最高优先级待运行项
+
 | 优先级 | 模型 | 数据集 | 策略 | 备注 |
 |---|---|---|---|---|
-| ⚠️ 最高 | CGNN | Elliptic | EWC / LwF / ER | CL 基线，config 已在 `configs/ours/cl_on_cgnn/` |
-| ⚠️ 最高 | CGNN | Elliptic++ Actor | TASD-CL + CL基线 + 消融 | `run_elliptic_actor_final.sh` 已创建 |
+| ⚠️ 最高 | GCN | Elliptic++ Actor | `EWC / LwF / ER` | 新增配置后需正式运行 |
+| ⚠️ 高 | PMP | Elliptic++ Actor | baseline | 目前缺 1 个 fraud baseline |
+| ⚠️ 高 | TASD-CL | Elliptic++ Actor | full + ablation | 使用 `run_elliptic_actor_final.sh` 统一复查 |
+| 低 | BSL | Elliptic | `EWC / LwF / ER` | 仅用于补充实验 |
 | 低 | 所有模型 | DGraphFin | — | OOM 未解决，暂搁置 |
 
 ---
@@ -265,33 +374,34 @@ nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2
 
 ---
 
-### 9.1 Elliptic 数据集 — 主实验结果（Task 10）
+### 9.1 Elliptic 数据集 — 主实验结果
 
-> TASD-CL 使用最优调参配置：`spc_lambda=0.1, spc_n_samples=128`（`elliptic_TASDCL_spc_lam01_n128_CGNN.yaml`）
+> TASD-CL 使用最优调参配置：`spc_lambda=0.1, spc_n_samples=128`。论文中只写 TASD-CL，不写成 CGNN + TASD-CL。
 
-| 排名 | 方法 | 策略 | AUC-ROC | G-Mean | MacroF1 | F1（参考） |
-|---|---|---|---|---|---|---|
-| **1** | **CGNN** | **TASD-CL（我们）** | **0.8713** | **0.7874** | **0.6521** | **0.4347** |
-| 2 | CGNN | Naive | 0.8631 | 0.7750 | 0.6163 | 0.4019 |
-| 3 | HOGRL | Naive | 0.8565 | 0.7596 | 0.6176 | 0.3953 |
-| 4 | GCN | Naive | 0.8562 | 0.7644 | 0.5870 | 0.3813 |
-| 5 | GradGNN | Naive | 0.8373 | 0.7364 | 0.5822 | 0.3839 |
-| 6 | BSL | Naive | 0.7681 | 0.5952 | 0.5621 | 0.3161 |
-| 7 | PMP | Naive | 0.6976 | 0.1768 | 0.4932 | 0.0591 |
+| 排名 | 方法 | AUC-ROC | G-Mean | MacroF1 | F1（参考） |
+|---|---|---:|---:|---:|---:|
+| **1** | **TASD-CL (ours)** | **0.8713** | **0.7874** | **0.6521** | **0.4347** |
+| 2 | CGNN | 0.8631 | 0.7750 | 0.6163 | 0.4019 |
+| 3 | GCN + EWC | 0.8585 | 0.7724 | 0.6086 | 0.3945 |
+| 4 | HOGRL | 0.8565 | 0.7596 | 0.6176 | 0.3953 |
+| 5 | GCN | 0.8562 | 0.7644 | 0.5870 | 0.3813 |
+| 6 | GCN + ER | 0.8511 | 0.7599 | 0.6265 | 0.4109 |
+| 7 | GCN + LwF | 0.8399 | 0.7055 | 0.5683 | 0.3746 |
+| 8 | GradGNN | 0.8373 | 0.7364 | 0.5822 | 0.3839 |
+| 9 | BSL | 0.7681 | 0.5952 | 0.5621 | 0.3161 |
+| 10 | PMP | 0.6976 | 0.1768 | 0.4932 | 0.0591 |
 
 **结论：TASD-CL 在三个主要指标上均排名第一。**
-- AUC-ROC：+0.0082 vs CGNN Naive（+0.95%）
-- G-Mean：+0.0124 vs CGNN Naive（+1.6%）
-- MacroF1：+0.0358 vs CGNN Naive（+5.8%）
-- PMP 在 Task-only 设定下几乎失效，验证研究动机
-
-**待补充**：Elliptic CL 基线（EWC/LwF/ER on CGNN）结果 — config 已就绪，需运行
+- AUC-ROC：+0.0082 vs CGNN。
+- G-Mean：+0.0124 vs CGNN。
+- MacroF1：+0.0248 vs GCN + ER。
+- PMP 在 Task-only 设定下几乎失效，验证研究动机。
 
 ---
 
-### 9.2 TASD-CL CGNN 逐任务 F1（Elliptic，排除 warmup Task 1）
+### 9.2 TASD-CL 逐任务 F1（Elliptic，排除 warmup Task 1）
 
-| Task | TASD-CL | CGNN Naive | HOGRL | GradGNN | GCN |
+| Task | TASD-CL | CGNN | HOGRL | GradGNN | GCN |
 |---|---|---|---|---|---|
 | 2 | 0.110 | 0.113 | 0.115 | 0.175 | 0.136 |
 | 3 | 0.292 | 0.298 | 0.324 | 0.338 | 0.311 |
@@ -307,7 +417,7 @@ nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2
 
 ---
 
-### 9.3 消融实验（Elliptic，CGNN backbone，Task 10）
+### 9.3 消融实验（Elliptic，TASD backbone，Task 10）
 
 | 方法 | AUC-ROC | G-Mean | MacroF1 | F1 |
 |---|---|---|---|---|
@@ -343,12 +453,12 @@ nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2
 | 排名 | 方法 | AUC-ROC | G-Mean | MacroF1 | F1 |
 |---|---|---|---|---|---|
 | **1** | **TASD-CL（mf10，我们）** | 0.7065 | 0.6488 | **0.6380** | **0.3601** |
-| 2 | CGNN Naive | **0.7710** | 0.6481 | 0.6276 | 0.3467 |
-| 3 | GradGNN Naive | 0.7484 | **0.7068** | 0.6205 | 0.3555 |
-| 4 | BSL Naive | 0.7450 | 0.7139 | 0.5749 | 0.3159 |
-| 5 | GCN Naive | 0.6735 | 0.6476 | 0.5920 | 0.3059 |
-| 6 | HOGRL Naive | 0.6756 | 0.6551 | 0.5841 | 0.2987 |
-| 7 | PMP Naive | — | — | — | 待运行 |
+| 2 | CGNN | **0.7710** | 0.6481 | 0.6276 | 0.3467 |
+| 3 | GradGNN | 0.7484 | **0.7068** | 0.6205 | 0.3555 |
+| 4 | BSL | 0.7450 | 0.7139 | 0.5749 | 0.3159 |
+| 5 | GCN | 0.6735 | 0.6476 | 0.5920 | 0.3059 |
+| 6 | HOGRL | 0.6756 | 0.6551 | 0.5841 | 0.2987 |
+| 7 | PMP | — | — | — | 待运行 |
 
 ⚠️ **Actor 上 TASD-CL 的 AUC（0.7065）低于 CGNN（0.7710）和 GradGNN（0.7484）**，等正式实验结果确认后决策。
 
@@ -453,21 +563,24 @@ python tools/collect_results.py
 
 ## 十七、下一步行动（按优先级）
 
-1. **⚠️【立即】运行 Elliptic CL 基线**（EWC/LwF/ER on CGNN）
-2. **⚠️ 分析 Actor 正式实验结果**（run_elliptic_actor_final.sh 完成后）
-3. **写论文实验章节**：主结果表（9.1）+ 消融表（9.3）+ 逐任务趋势图（9.2）
+1. **⚠️【立即】运行 Actor 正式补齐实验**：PMP、GCN + EWC、GCN + LwF、GCN + ER、TASD-CL full 与 ablation。
+2. **⚠️ 分析 Actor 正式实验结果**（`run_elliptic_actor_final.sh` 完成后）。
+3. **写论文实验章节**：Elliptic 主结果表（9.1）+ 消融表（9.3）+ 逐任务趋势图（9.2）。
 
 ### 主实验对比表（论文用，Elliptic，已确定）
 
 | 方法 | AUC-ROC | G-Mean | MacroF1 | 排名 |
 |---|---|---|---|---|
 | **TASD-CL（我们）** | **0.8713** | **0.7874** | **0.6521** | **1** |
-| CGNN Naive | 0.8631 | 0.7750 | 0.6163 | 2 |
-| HOGRL Naive | 0.8565 | 0.7596 | 0.6176 | 3 |
-| GCN Naive | 0.8562 | 0.7644 | 0.5870 | 4 |
-| GradGNN Naive | 0.8373 | 0.7364 | 0.5822 | 5 |
-| BSL Naive | 0.7681 | 0.5952 | 0.5621 | 6 |
-| PMP Naive | 0.6976 | 0.1768 | 0.4932 | 7 |
+| CGNN | 0.8631 | 0.7750 | 0.6163 | 2 |
+| GCN + EWC | 0.8585 | 0.7724 | 0.6086 | 3 |
+| HOGRL | 0.8565 | 0.7596 | 0.6176 | 4 |
+| GCN | 0.8562 | 0.7644 | 0.5870 | 5 |
+| GCN + ER | 0.8511 | 0.7599 | 0.6265 | 6 |
+| GCN + LwF | 0.8399 | 0.7055 | 0.5683 | 7 |
+| GradGNN | 0.8373 | 0.7364 | 0.5822 | 8 |
+| BSL | 0.7681 | 0.5952 | 0.5621 | 9 |
+| PMP | 0.6976 | 0.1768 | 0.4932 | 10 |
 
 ### 消融实验表（论文用，Elliptic，已确定）
 
