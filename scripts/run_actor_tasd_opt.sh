@@ -28,6 +28,14 @@ CONFIGS=(
   "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_scd02_th45.yaml"
   "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_tau03_th45.yaml"
   "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_th50.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_th40.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_th35.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_scd02_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_scd02_th40.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_scd03_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc5_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc5_th40.yaml"
   "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_lr5_th45.yaml"
 )
 
