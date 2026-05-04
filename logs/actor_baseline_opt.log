@@ -1,0 +1,56 @@
+nohup: ignoring input
+
+============================================================
+ Actor baseline threshold calibration sweep
+ 2026-05-04 07:15:24
+ Target metrics: AUC-ROC / G-Mean / MacroF1
+============================================================
+
+  [RUN ] actor_CGNN_th45
+  [CONF] configs/actor_baseline_opt/actor_CGNN_th45.yaml
+  [LOG ] logs/actor_CGNN_th45.log
+  [DONE] actor_CGNN_th45                      1m34s
+
+  [RUN ] actor_CGNN_th40
+  [CONF] configs/actor_baseline_opt/actor_CGNN_th40.yaml
+  [LOG ] logs/actor_CGNN_th40.log
+  [DONE] actor_CGNN_th40                      1m33s
+
+  [RUN ] actor_CGNN_th35
+  [CONF] configs/actor_baseline_opt/actor_CGNN_th35.yaml
+  [LOG ] logs/actor_CGNN_th35.log
+  [DONE] actor_CGNN_th35                      1m33s
+
+  [RUN ] actor_BSL_th45
+  [CONF] configs/actor_baseline_opt/actor_BSL_th45.yaml
+  [LOG ] logs/actor_BSL_th45.log
+  [DONE] actor_BSL_th45                       1m45s
+
+  [RUN ] actor_BSL_th40
+  [CONF] configs/actor_baseline_opt/actor_BSL_th40.yaml
+  [LOG ] logs/actor_BSL_th40.log
+  [DONE] actor_BSL_th40                       1m44s
+
+  [RUN ] actor_HOGRL_th45
+  [CONF] configs/actor_baseline_opt/actor_HOGRL_th45.yaml
+  [LOG ] logs/actor_HOGRL_th45.log
+  [DONE] actor_HOGRL_th45                     2m28s
+
+  [RUN ] actor_HOGRL_th40
+  [CONF] configs/actor_baseline_opt/actor_HOGRL_th40.yaml
+  [LOG ] logs/actor_HOGRL_th40.log
+  [DONE] actor_HOGRL_th40                     2m28s
+
+  [RUN ] actor_Grad_th45
+  [CONF] configs/actor_baseline_opt/actor_Grad_th45.yaml
+  [LOG ] logs/actor_Grad_th45.log
+  [DONE] actor_Grad_th45                      2m32s
+
+  [RUN ] actor_Grad_th40
+  [CONF] configs/actor_baseline_opt/actor_Grad_th40.yaml
+  [LOG ] logs/actor_Grad_th40.log
+  [DONE] actor_Grad_th40                      2m27s
+
+============================================================
+ Sweep finished. Failed: 0
+============================================================
