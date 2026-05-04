@@ -80,7 +80,7 @@ tail -f logs/actor_tasd_opt.log
 python scripts/summarize_actor_metrics.py
 ```
 
-Actor baseline 校准命令：
+Actor baseline 最小校准命令（仅修复 CGNN 的 G-Mean=0，不做广泛 baseline 调参）：
 
 ```bash
 nohup bash scripts/run_actor_baseline_opt.sh > logs/actor_baseline_opt.log 2>&1 &

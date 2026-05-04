@@ -6,7 +6,7 @@ from pathlib import Path
 
 FILES = [
     ("TASD-CL current", "weights/cgnn/elliptic_actor_TASDCL_CGNN/metrics/elliptic_actor_TASDCL_CGNN_aggregate_metrics.csv"),
-    ("CGNN", "weights/cgnn/elliptic_actor_Naive_CGNN/metrics/elliptic_actor_Naive_CGNN_aggregate_metrics.csv"),
+    ("CGNN", "weights/baseline_opt/actor_CGNN_th45/metrics/actor_CGNN_th45_aggregate_metrics.csv"),
     ("HOGRL", "weights/hogrl/elliptic_actor_Naive_HOGRL/metrics/elliptic_actor_Naive_HOGRL_aggregate_metrics.csv"),
     ("GradGNN", "weights/grad/elliptic_actor_Naive_Grad/metrics/elliptic_actor_Naive_Grad_aggregate_metrics.csv"),
     ("BSL", "weights/bsl/elliptic_actor_Naive_BSL/metrics/elliptic_actor_Naive_BSL_aggregate_metrics.csv"),
@@ -22,11 +22,6 @@ def iter_actor_opt_files() -> list[tuple[str, str]]:
     root = Path("weights/tasd")
     if root.exists():
         for path in sorted(root.glob("actor_TASDCL_*/metrics/*_aggregate_metrics.csv")):
-            files.append((path.parts[-3], str(path)))
-
-    root = Path("weights/baseline_opt")
-    if root.exists():
-        for path in sorted(root.glob("actor_*/metrics/*_aggregate_metrics.csv")):
             files.append((path.parts[-3], str(path)))
 
     return files

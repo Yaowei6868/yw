@@ -18,6 +18,9 @@ mkdir -p "${LOG_DIR}"
 
 CONFIGS=(
   "configs/ours/actor_opt/actor_TASDCL_spc_mf10.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_spc_mf10_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_spc_mf10_th40.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_spc_mf10_th35.yaml"
   "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_th50.yaml"
   "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_th45.yaml"
   "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_th40.yaml"

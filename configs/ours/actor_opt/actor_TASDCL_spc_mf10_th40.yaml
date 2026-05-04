@@ -1,4 +1,4 @@
-name: actor_Grad_th45
+name: actor_TASDCL_spc_mf10_th40
 
 dataset:
   root: "data/elliptic++actor"
@@ -8,19 +8,15 @@ model:
   hidden_dim: 128
   output_dim: 1
   dropout: 0.5
-  num_heads: 4
-  group_size: 32
-  diff_steps: 100
-  beta_order: 4
 
 train:
   dataset: elliptic_actor
-  model: grad
+  model: cgnn
   device: cuda
   lr: 0.001
   weight_decay: 1e-5
   print_freq: 10
-  save_dir: weights/baseline_opt/actor_Grad_th45
+  save_dir: weights/tasd/actor_TASDCL_spc_mf10_th40
 
   num_epochs_per_task: 30
   task_schedule:
@@ -35,6 +31,15 @@ train:
     - [8]
     - [9]
 
-  ewc_lambda: 0.0
+  cgnn_lambda: 0.0
+  cgnn_beta: 0.0
+  ewc_lambda: 1.0
+  spc_lambda: 0.1
+  spc_n_samples: 128
+  spc_min_fraud: 10
+  scd_lambda: 0.5
+  scd_tau: 0.5
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
   buffer_size_per_class: 0
-  threshold: 0.45
+  threshold: 0.40

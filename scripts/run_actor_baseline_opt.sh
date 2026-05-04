@@ -1,7 +1,7 @@
 #!/bin/bash
 # run_actor_baseline_opt.sh
-# Actor baseline calibration sweep. This only changes decision thresholds,
-# mainly to avoid degenerate all-negative predictions such as G-Mean=0.
+# Minimal Actor baseline calibration. This only fixes the degenerate CGNN
+# all-negative prediction case; it is not a broad baseline tuning sweep.
 #
 # Usage:
 #   nohup bash scripts/run_actor_baseline_opt.sh > logs/actor_baseline_opt.log 2>&1 &
@@ -19,14 +19,6 @@ mkdir -p "${LOG_DIR}"
 
 CONFIGS=(
   "configs/actor_baseline_opt/actor_CGNN_th45.yaml"
-  "configs/actor_baseline_opt/actor_CGNN_th40.yaml"
-  "configs/actor_baseline_opt/actor_CGNN_th35.yaml"
-  "configs/actor_baseline_opt/actor_BSL_th45.yaml"
-  "configs/actor_baseline_opt/actor_BSL_th40.yaml"
-  "configs/actor_baseline_opt/actor_HOGRL_th45.yaml"
-  "configs/actor_baseline_opt/actor_HOGRL_th40.yaml"
-  "configs/actor_baseline_opt/actor_Grad_th45.yaml"
-  "configs/actor_baseline_opt/actor_Grad_th40.yaml"
 )
 
 yaml_field() {
@@ -86,7 +78,7 @@ run_experiment() {
 
 echo ""
 echo "============================================================"
-echo " Actor baseline threshold calibration sweep"
+echo " Minimal Actor baseline calibration"
 printf " %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo " Target metrics: AUC-ROC / G-Mean / MacroF1"
 echo "============================================================"
