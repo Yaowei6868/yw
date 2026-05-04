@@ -3,123 +3,133 @@ Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/cs
   current = float(metrics)
 
 --- Training on Task 1 (Timesteps: 0 to 0) ---
-🔧 Task 1 动态权重: 111.69 -> 截断为: 20.00
+[INFO] Task 1 class weight: 110.96 -> clipped: 20.00
    -> Focal Loss Alpha: 0.9524
-📉 Snapshot 节点数: 189571 (仅当前任务)
+[INFO] Snapshot nodes: 189571 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
-*** CL Metrics @ Task 1 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0.]
+*** CL Metrics @ Task 1 [WARM-UP, 仅供参考] ***
+  [Binary]  F1: 0.0000 | Precision: 0.0000 | Recall: 0.0000
+  [Macro]   Macro-F1: 0.4980 | Macro-Recall: 0.5000
+  [Ranking] AUC-ROC: 0.5000 | AUC-PR: 0.0081
+  [Balance] G-Mean: 0.0000 | Specificity: 1.0000 | MCC: 0.0000
 
 --- Training on Task 2 (Timesteps: 1 to 1) ---
-🔧 Task 2 动态权重: 21.12 -> 截断为: 10.00
+[INFO] Task 2 class weight: 21.43 -> clipped: 10.00
    -> Focal Loss Alpha: 0.9091
-📉 Snapshot 节点数: 160370 (仅当前任务)
+[INFO] Snapshot nodes: 160370 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
 *** CL Metrics @ Task 2 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0.]
+  [Binary]  F1: 0.1589 | Precision: 0.1040 | Recall: 0.4310
+  [Macro]   Macro-F1: 0.5417 | Macro-Recall: 0.6513
+  [Ranking] AUC-ROC: 0.6512 | AUC-PR: 0.0695
+  [Balance] G-Mean: 0.6062 | Specificity: 0.8717 | MCC: 0.1564
 
 --- Training on Task 3 (Timesteps: 2 to 2) ---
-🔧 Task 3 动态权重: 12.34 -> 截断为: 10.00
+[INFO] Task 3 class weight: 12.37 -> clipped: 10.00
    -> Focal Loss Alpha: 0.9091
-📉 Snapshot 节点数: 100261 (仅当前任务)
+[INFO] Snapshot nodes: 100261 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
 *** CL Metrics @ Task 3 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0.]
+  [Binary]  F1: 0.2644 | Precision: 0.1968 | Recall: 0.4970
+  [Macro]   Macro-F1: 0.5963 | Macro-Recall: 0.6905
+  [Ranking] AUC-ROC: 0.6904 | AUC-PR: 0.1368
+  [Balance] G-Mean: 0.6561 | Specificity: 0.8840 | MCC: 0.2483
 
 --- Training on Task 4 (Timesteps: 3 to 3) ---
-🔧 Task 4 动态权重: 7.93 -> 截断为: 7.93
-   -> Focal Loss Alpha: 0.8880
-📉 Snapshot 节点数: 96398 (仅当前任务)
+[INFO] Task 4 class weight: 7.97 -> clipped: 7.97
+   -> Focal Loss Alpha: 0.8885
+[INFO] Snapshot nodes: 96398 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
 *** CL Metrics @ Task 4 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0. 0.]
+  [Binary]  F1: 0.3065 | Precision: 0.2328 | Recall: 0.5209
+  [Macro]   Macro-F1: 0.6133 | Macro-Recall: 0.6987
+  [Ranking] AUC-ROC: 0.6986 | AUC-PR: 0.1645
+  [Balance] G-Mean: 0.6699 | Specificity: 0.8764 | MCC: 0.2751
 
 --- Training on Task 5 (Timesteps: 4 to 4) ---
-🔧 Task 5 动态权重: 6.70 -> 截断为: 6.70
-   -> Focal Loss Alpha: 0.8701
-📉 Snapshot 节点数: 148489 (仅当前任务)
+[INFO] Task 5 class weight: 6.70 -> clipped: 6.70
+   -> Focal Loss Alpha: 0.8702
+[INFO] Snapshot nodes: 148489 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
 *** CL Metrics @ Task 5 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0. 0. 0.]
+  [Binary]  F1: 0.3477 | Precision: 0.2790 | Recall: 0.5315
+  [Macro]   Macro-F1: 0.6335 | Macro-Recall: 0.7061
+  [Ranking] AUC-ROC: 0.7061 | AUC-PR: 0.1961
+  [Balance] G-Mean: 0.6795 | Specificity: 0.8808 | MCC: 0.3065
 
 --- Training on Task 6 (Timesteps: 5 to 5) ---
-🔧 Task 6 动态权重: 3.78 -> 截断为: 3.78
-   -> Focal Loss Alpha: 0.7907
-📉 Snapshot 节点数: 72045 (仅当前任务)
+[INFO] Task 6 class weight: 3.81 -> clipped: 3.81
+   -> Focal Loss Alpha: 0.7919
+[INFO] Snapshot nodes: 72045 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
 *** CL Metrics @ Task 6 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0. 0. 0. 0.]
+  [Binary]  F1: 0.3816 | Precision: 0.3215 | Recall: 0.5377
+  [Macro]   Macro-F1: 0.6467 | Macro-Recall: 0.7081
+  [Ranking] AUC-ROC: 0.7080 | AUC-PR: 0.2293
+  [Balance] G-Mean: 0.6833 | Specificity: 0.8785 | MCC: 0.3265
 
 --- Training on Task 7 (Timesteps: 6 to 6) ---
-🔧 Task 7 动态权重: 6.60 -> 截断为: 6.60
-   -> Focal Loss Alpha: 0.8685
-📉 Snapshot 节点数: 106824 (仅当前任务)
+[INFO] Task 7 class weight: 6.63 -> clipped: 6.63
+   -> Focal Loss Alpha: 0.8690
+[INFO] Snapshot nodes: 106824 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
 *** CL Metrics @ Task 7 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0. 0. 0. 0. 0.]
+  [Binary]  F1: 0.3922 | Precision: 0.3283 | Recall: 0.5460
+  [Macro]   Macro-F1: 0.6501 | Macro-Recall: 0.7098
+  [Ranking] AUC-ROC: 0.7097 | AUC-PR: 0.2356
+  [Balance] G-Mean: 0.6870 | Specificity: 0.8735 | MCC: 0.3318
 
 --- Training on Task 8 (Timesteps: 7 to 7) ---
-🔧 Task 8 动态权重: 9.62 -> 截断为: 9.62
-   -> Focal Loss Alpha: 0.9059
-📉 Snapshot 节点数: 138779 (仅当前任务)
+[INFO] Task 8 class weight: 9.60 -> clipped: 9.60
+   -> Focal Loss Alpha: 0.9057
+[INFO] Snapshot nodes: 138779 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
 *** CL Metrics @ Task 8 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0. 0. 0. 0. 0. 0.]
+  [Binary]  F1: 0.3805 | Precision: 0.3138 | Recall: 0.5406
+  [Macro]   Macro-F1: 0.6418 | Macro-Recall: 0.7029
+  [Ranking] AUC-ROC: 0.7028 | AUC-PR: 0.2254
+  [Balance] G-Mean: 0.6807 | Specificity: 0.8651 | MCC: 0.3174
 
 --- Training on Task 9 (Timesteps: 8 to 8) ---
-🔧 Task 9 动态权重: 22.40 -> 截断为: 10.00
+[INFO] Task 9 class weight: 22.55 -> clipped: 10.00
    -> Focal Loss Alpha: 0.9091
-📉 Snapshot 节点数: 166309 (仅当前任务)
+[INFO] Snapshot nodes: 166309 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
 *** CL Metrics @ Task 9 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0. 0. 0. 0. 0. 0. 0.]
+  [Binary]  F1: 0.3583 | Precision: 0.2910 | Recall: 0.5419
+  [Macro]   Macro-F1: 0.6288 | Macro-Recall: 0.6991
+  [Ranking] AUC-ROC: 0.6991 | AUC-PR: 0.2092
+  [Balance] G-Mean: 0.6783 | Specificity: 0.8564 | MCC: 0.3007
 
 --- Training on Task 10 (Timesteps: 9 to 9) ---
-🔧 Task 10 动态权重: 12.38 -> 截断为: 10.00
+[INFO] Task 10 class weight: 12.37 -> clipped: 10.00
    -> Focal Loss Alpha: 0.9091
-📉 Snapshot 节点数: 89214 (仅当前任务)
+[INFO] Snapshot nodes: 89214 (current task only)
    [EWC] Updating Fisher Matrix...
 
 --- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
 *** CL Metrics @ Task 10 ***
-  [Accuracy]  Avg F1: 0.0000 | AUC-ROC: 0.5000 | G-Mean: 0.0000
-  [Stability] Avg Forgetting (↓): 0.0000 | Avg BWT (↑): 0.0000
-  > Matrix Row:  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
+  [Binary]  F1: 0.3377 | Precision: 0.2750 | Recall: 0.5057
+  [Macro]   Macro-F1: 0.6194 | Macro-Recall: 0.6834
+  [Ranking] AUC-ROC: 0.6832 | AUC-PR: 0.1968
+  [Balance] G-Mean: 0.6508 | Specificity: 0.8610 | MCC: 0.2778
 All tasks trained.
-Total time: 22.00s
+Total time: 25.46s
