@@ -2,7 +2,7 @@
 # run_elliptic_actor_only.sh — Elliptic++ Actor 数据集全量实验
 # 用法: nohup bash scripts/run_elliptic_actor_only.sh > logs/elliptic_actor.log 2>&1 &
 #
-# 包含：Naive 基线 × 7 + CL 基线 × 3 + TASD-CL × 1 + 消融 × 3 = 共 14 个实验
+# 包含：baseline × 5 + GCN CL 基线 × 3 + TASD-CL × 1 = 共 9 个实验
 
 set -euo pipefail
 
@@ -71,31 +71,23 @@ echo "║  DATASET: Elliptic++ Actor — 全量实验                    ║"
 printf "║  %-56s║\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo "╚══════════════════════════════════════════════════════════╝"
 
-# ── [A] Naive 基线（7 个）────────────────────────────────────
-echo ""; echo "  ── [A] Naive 基线 ──────────────────────────────────"
+# ── [A] Fraud/graph baselines ───────────────────────────────
+echo ""; echo "  ── [A] Fraud/graph baselines ───────────────────────"
 run_experiment "configs/traditional/elliptic_actor_Naive_GCN.yaml"
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_BSL.yaml"
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_CGNN.yaml"
-run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_ConsisGAD.yaml"
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_Grad.yaml"
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_HOGRL.yaml"
-run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_PMP.yaml"
 
-# ── [B] 通用 CL 基线（EWC / LwF / ER on CGNN，3 个）───────────
-echo ""; echo "  ── [B] 通用 CL 基线 (CGNN backbone) ──────────────"
-run_experiment "configs/ours/cl_on_cgnn/elliptic_actor_EWC_CGNN.yaml"
-run_experiment "configs/ours/cl_on_cgnn/elliptic_actor_LwF_CGNN.yaml"
-run_experiment "configs/ours/cl_on_cgnn/elliptic_actor_ER_CGNN.yaml"
+# ── [B] Generic CL baselines on ordinary GCN ─────────────────
+echo ""; echo "  ── [B] Generic CL baselines on GCN ────────────────"
+run_experiment "configs/ours/cl_on_gcn/elliptic_actor_EWC_GCN.yaml"
+run_experiment "configs/ours/cl_on_gcn/elliptic_actor_LwF_GCN.yaml"
+run_experiment "configs/ours/cl_on_gcn/elliptic_actor_ER_GCN.yaml"
 
 # ── [C] TASD-CL 主方法（1 个）──────────────────────────────────
 echo ""; echo "  ── [C] TASD-CL (Ours) ─────────────────────────────"
 run_experiment "configs/ours/main/elliptic_actor_TASDCL_CGNN.yaml"
-
-# ── [D] 消融实验（3 个）─────────────────────────────────────────
-echo ""; echo "  ── [D] 消融实验 (noSSF / noSPC / noSCD) ──────────"
-run_experiment "configs/ours/ablation/elliptic_actor_TASDCL_noSSF_CGNN.yaml"
-run_experiment "configs/ours/ablation/elliptic_actor_TASDCL_noSPC_CGNN.yaml"
-run_experiment "configs/ours/ablation/elliptic_actor_TASDCL_noSCD_CGNN.yaml"
 
 TOTAL_END=$(date +%s); TOTAL_ELAPSED=$(( TOTAL_END - TOTAL_START ))
 echo ""

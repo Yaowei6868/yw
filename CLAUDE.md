@@ -44,33 +44,39 @@
 
 写作注意：不能写“三个组件在所有指标上一致提升”。稳妥写法是：SCD 最关键；SSF 提供稳定性；SPC 有助于 AUC/G-Mean 和 structure-free preservation，但在 MacroF1/F1 上存在 trade-off。
 
-### Actor 当前状态与下一步
+### Actor 当前状态与下一步（2026-05-04 更新）
 
 Actor 已有完整结果：
 - GCN / CGNN / HOGRL / GradGNN / BSL
-- TASD-CL
-- TASD-CL w/o SSF / w/o SPC / w/o SCD
+- GCN + EWC / GCN + LwF / GCN + ER
+- TASD-CL 当前正式结果
 
-Actor 当前缺口：
-- `PMP`
-- `GCN + EWC`
-- `GCN + LwF`
-- `GCN + ER`
+Actor 当前正式对比中删除：
+- `PMP`：Actor task-only full-snapshot 下 OOM，不再作为 Actor 对比方法。
+- `CGNN + EWC/LwF/ER` 与 `BSL + EWC/LwF/ER`：不符合当前实验边界，通用 CL baseline 只放在 ordinary GCN 上。
 
-已新增正式配置：
+Actor 当前目标：
+- 三个主指标：AUC-ROC / G-Mean / MacroF1。
+- 优化 TASD-CL Actor 配置，使 ours 在三个主指标上尽可能达到第一。
+
+已新增/保留正式配置：
 - `configs/ours/cl_on_gcn/elliptic_actor_EWC_GCN.yaml`
 - `configs/ours/cl_on_gcn/elliptic_actor_LwF_GCN.yaml`
 - `configs/ours/cl_on_gcn/elliptic_actor_ER_GCN.yaml`
+- `configs/ours/actor_opt/*.yaml`
 
-已更新脚本：
+已更新/新增脚本：
 - `scripts/run_elliptic_actor_final.sh`
+- `scripts/run_actor_tasd_opt.sh`
+- `scripts/summarize_actor_metrics.py`
 
 服务器运行命令：
 
 ```bash
 git pull origin main
-FORCE_RERUN=1 nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2>&1 &
-tail -f logs/elliptic_actor_final.log
+nohup bash scripts/run_actor_tasd_opt.sh > logs/actor_tasd_opt.log 2>&1 &
+tail -f logs/actor_tasd_opt.log
+python scripts/summarize_actor_metrics.py
 ```
 
 ---
@@ -458,9 +464,9 @@ nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2
 | 4 | BSL | 0.7450 | 0.7139 | 0.5749 | 0.3159 |
 | 5 | GCN | 0.6735 | 0.6476 | 0.5920 | 0.3059 |
 | 6 | HOGRL | 0.6756 | 0.6551 | 0.5841 | 0.2987 |
-| 7 | PMP | — | — | — | 待运行 |
+| — | PMP | — | — | — | Actor 已删除（OOM） |
 
-⚠️ **Actor 上 TASD-CL 的 AUC（0.7065）低于 CGNN（0.7710）和 GradGNN（0.7484）**，等正式实验结果确认后决策。
+⚠️ **Actor 上 TASD-CL 仍需优化**：当前目标是让 TASD-CL 在 AUC-ROC、G-Mean、MacroF1 三个主指标上尽可能达到第一。优化配置位于 `configs/ours/actor_opt/`。
 
 ---
 
@@ -563,8 +569,8 @@ python tools/collect_results.py
 
 ## 十七、下一步行动（按优先级）
 
-1. **⚠️【立即】运行 Actor 正式补齐实验**：PMP、GCN + EWC、GCN + LwF、GCN + ER、TASD-CL full 与 ablation。
-2. **⚠️ 分析 Actor 正式实验结果**（`run_elliptic_actor_final.sh` 完成后）。
+1. **⚠️【立即】运行 Actor TASD-CL 优化搜索**：`scripts/run_actor_tasd_opt.sh`。
+2. **⚠️ 汇总 Actor 结果**：`python scripts/summarize_actor_metrics.py`，选择 AUC-ROC、G-Mean、MacroF1 综合最优配置。
 3. **写论文实验章节**：Elliptic 主结果表（9.1）+ 消融表（9.3）+ 逐任务趋势图（9.2）。
 
 ### 主实验对比表（论文用，Elliptic，已确定）

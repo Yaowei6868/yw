@@ -191,7 +191,6 @@ run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_HOGRL.yam
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_CGNN.yaml"
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_ConsisGAD.yaml"
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_Grad.yaml"
-run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_PMP.yaml"
 run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_BSL.yaml"
 
 section "[E] BSL CL 策略对比"

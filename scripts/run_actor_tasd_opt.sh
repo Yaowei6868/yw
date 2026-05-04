@@ -1,16 +1,9 @@
 #!/bin/bash
-# run_elliptic_actor_final.sh
-# Elliptic++ Actor formal experiments.
-#
-# Experimental boundary:
-#   - CGNN / HOGRL / GradGNN / BSL are fraud detection baselines.
-#   - GCN + EWC/LwF/ER are generic continual learning baselines on ordinary graph learning.
-#   - TASD-CL is our method built on the proposed TASD backbone.
-#   - PMP is excluded on Actor because it OOMs under the task-only full-snapshot setting.
+# run_actor_tasd_opt.sh
+# TASD-CL Actor optimization sweep for AUC-ROC, G-Mean, and MacroF1.
 #
 # Usage:
-#   bash scripts/run_elliptic_actor_final.sh
-#   FORCE_RERUN=1 nohup bash scripts/run_elliptic_actor_final.sh > logs/elliptic_actor_final.log 2>&1 &
+#   nohup bash scripts/run_actor_tasd_opt.sh > logs/actor_tasd_opt.log 2>&1 &
 
 set -euo pipefail
 
@@ -22,10 +15,18 @@ NUM_TASKS=10
 COMPLETE_ROWS=$((NUM_TASKS + 1))
 
 mkdir -p "${LOG_DIR}"
-SKIP_COUNT=0
-RUN_COUNT=0
-FAIL_COUNT=0
-TOTAL_START=$(date +%s)
+
+CONFIGS=(
+  "configs/ours/actor_opt/actor_TASDCL_spc_mf10.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_th50.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_th40.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_th35.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_scd02_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_tau03_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc4_th45.yaml"
+  "configs/ours/actor_opt/actor_TASDCL_nospc_ewc3_lr5_th45.yaml"
+)
 
 yaml_field() {
     grep -m1 "^${2}:" "$1" | awk '{print $2}' | tr -d '"' | tr -d "'"
@@ -56,13 +57,11 @@ should_skip() {
 run_experiment() {
     local config_path="$1"
     local exp_name log_file t_start t_end elapsed
-
     exp_name=$(yaml_field "$config_path" "name")
     log_file="${LOG_DIR}/${exp_name}.log"
 
     if should_skip "$config_path"; then
         echo "  [SKIP] ${exp_name}"
-        SKIP_COUNT=$((SKIP_COUNT + 1))
         return
     fi
 
@@ -76,50 +75,29 @@ run_experiment() {
     if ${PYTHON} train.py --config "${config_path}" > "${log_file}" 2>&1; then
         t_end=$(date +%s)
         elapsed=$((t_end - t_start))
-        printf "  [DONE] %-40s %dm%02ds\n" "${exp_name}" $((elapsed / 60)) $((elapsed % 60))
-        RUN_COUNT=$((RUN_COUNT + 1))
+        printf "  [DONE] %-42s %dm%02ds\n" "${exp_name}" $((elapsed / 60)) $((elapsed % 60))
     else
         echo "  [FAIL] ${exp_name}"
         tail -10 "${log_file}" | sed 's/^/    /'
-        FAIL_COUNT=$((FAIL_COUNT + 1))
+        return 1
     fi
 }
 
 echo ""
 echo "============================================================"
-echo " Elliptic++ Actor formal experiments"
+echo " TASD-CL Actor optimization sweep"
 printf " %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+echo " Target metrics: AUC-ROC / G-Mean / MacroF1"
 echo "============================================================"
 
-echo ""
-echo "  -- Fraud and graph baselines --"
-run_experiment "configs/traditional/elliptic_actor_Naive_GCN.yaml"
-run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_BSL.yaml"
-run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_CGNN.yaml"
-run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_Grad.yaml"
-run_experiment "configs/fraud_sota/elliptic_actor/elliptic_actor_Naive_HOGRL.yaml"
-
-echo ""
-echo "  -- Generic CL baselines on ordinary GCN --"
-run_experiment "configs/ours/cl_on_gcn/elliptic_actor_EWC_GCN.yaml"
-run_experiment "configs/ours/cl_on_gcn/elliptic_actor_LwF_GCN.yaml"
-run_experiment "configs/ours/cl_on_gcn/elliptic_actor_ER_GCN.yaml"
-
-echo ""
-echo "  -- TASD-CL --"
-run_experiment "configs/ours/main/elliptic_actor_TASDCL_CGNN.yaml"
-
-TOTAL_END=$(date +%s)
-TOTAL_ELAPSED=$((TOTAL_END - TOTAL_START))
+FAIL_COUNT=0
+for config_path in "${CONFIGS[@]}"; do
+    run_experiment "$config_path" || FAIL_COUNT=$((FAIL_COUNT + 1))
+done
 
 echo ""
 echo "============================================================"
-printf " Finished: %s | Time: %dh%dm%ds\n" \
-       "$(date '+%H:%M:%S')" \
-       $((TOTAL_ELAPSED / 3600)) $(((TOTAL_ELAPSED % 3600) / 60)) $((TOTAL_ELAPSED % 60))
-printf " Done: %d | Skipped: %d | Failed: %d\n" \
-       "${RUN_COUNT}" "${SKIP_COUNT}" "${FAIL_COUNT}"
+echo " Sweep finished. Failed: ${FAIL_COUNT}"
 echo "============================================================"
 
-[[ "${FAIL_COUNT}" -gt 0 ]] && exit 1
-exit 0
+exit "${FAIL_COUNT}"
