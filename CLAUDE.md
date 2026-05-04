@@ -68,6 +68,7 @@ Actor 当前目标：
 已更新/新增脚本：
 - `scripts/run_elliptic_actor_final.sh`
 - `scripts/run_actor_tasd_opt.sh`
+- `scripts/run_actor_baseline_opt.sh`
 - `scripts/summarize_actor_metrics.py`
 
 服务器运行命令：
@@ -76,6 +77,14 @@ Actor 当前目标：
 git pull origin main
 nohup bash scripts/run_actor_tasd_opt.sh > logs/actor_tasd_opt.log 2>&1 &
 tail -f logs/actor_tasd_opt.log
+python scripts/summarize_actor_metrics.py
+```
+
+Actor baseline 校准命令：
+
+```bash
+nohup bash scripts/run_actor_baseline_opt.sh > logs/actor_baseline_opt.log 2>&1 &
+tail -f logs/actor_baseline_opt.log
 python scripts/summarize_actor_metrics.py
 ```
 

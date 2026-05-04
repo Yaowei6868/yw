@@ -18,12 +18,17 @@ FILES = [
 
 
 def iter_actor_opt_files() -> list[tuple[str, str]]:
-    root = Path("weights/tasd")
-    if not root.exists():
-        return []
     files = []
-    for path in sorted(root.glob("actor_TASDCL_*/metrics/*_aggregate_metrics.csv")):
-        files.append((path.parts[-3], str(path)))
+    root = Path("weights/tasd")
+    if root.exists():
+        for path in sorted(root.glob("actor_TASDCL_*/metrics/*_aggregate_metrics.csv")):
+            files.append((path.parts[-3], str(path)))
+
+    root = Path("weights/baseline_opt")
+    if root.exists():
+        for path in sorted(root.glob("actor_*/metrics/*_aggregate_metrics.csv")):
+            files.append((path.parts[-3], str(path)))
+
     return files
 
 
