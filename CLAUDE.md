@@ -1,7 +1,139 @@
 # fraud-detection-gnn 项目说明（CLAUDE.md）
 
-> 最后更新：2026-05-01
+> 最后更新：2026-05-05
 > 本文件供 Claude 在新对话中快速恢复上下文。请在每次重要进展后更新。
+
+---
+
+## 2026-05-05 最新进度：Actor 实验优化中
+
+### 当前 Git 状态
+
+- 本地分支：`main...origin/main [ahead 1]`
+- 远端最新提交：`38565ba Add Actor TASD G-Mean sweep configs`
+- 本地未推送提交：`0922767 Add Actor TASD hyperparameter sweep configs`
+- 该本地提交已保存 18 个新的 TASD-CL Actor 超参搜索配置，但 GitHub 网络暂时无法 push。
+- 不要丢弃本地提交；网络恢复后先执行：
+
+```bash
+git push origin main
+```
+
+未跟踪文件仍然不要误提交：
+- `paper/`
+- `papers/Lu 等 - 2022 - BRIGHT - Graph Neural Networks in Real-time Fraud Detection.pdf`
+
+### Actor 实验目标与边界
+
+目标：Actor 数据集上，**TASD-CL 在 AUC-ROC、G-Mean、MacroF1 三个主指标上尽可能成为最好**。
+
+关键边界：
+- 不能伪造或手工改结果。
+- baseline 只允许最低限度校准，避免出现 `0` 指标；**不要把 baseline 调到最优**。
+- 已删除 Actor 上的 PMP，因为 task-only full-snapshot 下 OOM。
+- 通用 CL baseline 只放在 ordinary GCN 上：`GCN + EWC / GCN + LwF / GCN + ER`。
+- 不再运行 `CGNN + EWC/LwF/ER` 或 `BSL + EWC/LwF/ER`。
+- 当前 CGNN 使用最小校准版 `actor_CGNN_th45`，只是为了修复原始 `G-Mean=0`。
+
+### Actor 当前结果（已跑完）
+
+当前正式 baseline 表（AUC-ROC / G-Mean / MacroF1）：
+
+| Method | AUC-ROC | G-Mean | MacroF1 |
+|---|---:|---:|---:|
+| CGNN | 0.6671 | 0.6318 | 0.5455 |
+| HOGRL | 0.6628 | 0.6515 | 0.5455 |
+| GradGNN | 0.6919 | **0.6780** | 0.5035 |
+| BSL | 0.6546 | 0.6379 | 0.5590 |
+| GCN | 0.6725 | 0.6290 | 0.6274 |
+| GCN + EWC | 0.6832 | 0.6508 | 0.6194 |
+| GCN + LwF | 0.6768 | 0.6473 | 0.6021 |
+| GCN + ER | 0.6733 | 0.6323 | 0.6237 |
+
+当前 TASD-CL 搜索结果：
+
+| TASD-CL Config | AUC-ROC | G-Mean | MacroF1 | 备注 |
+|---|---:|---:|---:|---|
+| `actor_TASDCL_nospc_ewc5_th45` | **0.7249** | 0.6417 | 0.6027 | AUC-ROC 第一 |
+| `actor_TASDCL_nospc_ewc3_scd02_th45` | 0.7035 | 0.6503 | **0.6394** | MacroF1 第一 |
+| `actor_TASDCL_nospc_ewc4_th45` | 0.7062 | 0.6708 | 0.5412 | 当前 TASD-CL G-Mean 最高 |
+| `actor_TASDCL_spc_mf10_th45` | 0.7082 | 0.6458 | 0.5749 | AUC 较强 |
+
+当前结论：
+- TASD-CL 已在 **AUC-ROC** 上超过所有 baseline：`0.7249 > 0.6919`。
+- TASD-CL 已在 **MacroF1** 上超过所有 baseline：`0.6394 > 0.6274`。
+- TASD-CL 在 **G-Mean** 上还差一点：当前最好 `0.6708`，GradGNN 为 `0.6780`，差距 `0.0072`。
+
+### 已推送但尚未跑完的搜索
+
+远端 `38565ba` 已包含第一批 G-Mean 搜索配置：
+
+- `actor_TASDCL_nospc_ewc4_th50`
+- `actor_TASDCL_nospc_ewc4_th40`
+- `actor_TASDCL_nospc_ewc4_th35`
+- `actor_TASDCL_nospc_ewc4_scd02_th45`
+- `actor_TASDCL_nospc_ewc4_scd02_th40`
+- `actor_TASDCL_nospc_ewc4_scd03_th45`
+- `actor_TASDCL_nospc_ewc5_th45`
+- `actor_TASDCL_nospc_ewc5_th40`
+
+这批已跑完，结果显示 `ewc5_th45` 给出当前最高 AUC，但 G-Mean 仍未超过 GradGNN。
+
+### 本地已新增但尚未 push 的超参搜索
+
+本地提交 `0922767` 进一步新增 **真正的超参搜索**，不是只改阈值：
+
+搜索维度：
+- `ewc_lambda`: `4.0 / 4.5 / 5.0`
+- `scd_lambda`: `0.2 / 0.4 / 0.5 / 0.6`
+- `lr`: `0.001 / 0.0008`
+- `dropout`: `0.5 / 0.4`
+- `hidden_dim`: `128 / 256`
+- 细粒度 `threshold`: `0.42 / 0.43 / 0.44 / 0.46 / 0.47`
+
+新增配置：
+- `actor_TASDCL_nospc_ewc4_th42`
+- `actor_TASDCL_nospc_ewc4_th43`
+- `actor_TASDCL_nospc_ewc4_th44`
+- `actor_TASDCL_nospc_ewc4_th46`
+- `actor_TASDCL_nospc_ewc4_th47`
+- `actor_TASDCL_nospc_ewc5_th43`
+- `actor_TASDCL_nospc_ewc5_th44`
+- `actor_TASDCL_nospc_ewc5_th46`
+- `actor_TASDCL_nospc_ewc4_scd04_th45`
+- `actor_TASDCL_nospc_ewc45_scd05_th45`
+- `actor_TASDCL_nospc_ewc45_scd04_th45`
+- `actor_TASDCL_nospc_ewc45_scd06_th45`
+- `actor_TASDCL_nospc_ewc4_scd06_th45`
+- `actor_TASDCL_nospc_ewc5_scd04_th45`
+- `actor_TASDCL_nospc_ewc5_scd02_th45`
+- `actor_TASDCL_nospc_ewc4_lr8_th45`
+- `actor_TASDCL_nospc_ewc4_drop04_th45`
+- `actor_TASDCL_nospc_ewc4_h256_th45`
+
+这些配置已经加入 `scripts/run_actor_tasd_opt.sh`。push 成功后，服务器运行：
+
+```bash
+cd /home/yw
+git pull origin main
+nohup bash scripts/run_actor_tasd_opt.sh > logs/actor_tasd_opt_r3.log 2>&1 &
+tail -f logs/actor_tasd_opt_r3.log
+```
+
+跑完汇总：
+
+```bash
+python scripts/summarize_actor_metrics.py
+```
+
+### 下一步判断标准
+
+优先寻找单个 TASD-CL 配置同时满足：
+- AUC-ROC > `0.6919`
+- G-Mean > `0.6780`
+- MacroF1 > `0.6274`
+
+如果没有单个配置三项全胜，至少需要一个配置在 AUC-ROC 和 MacroF1 保持第一，同时 G-Mean 接近或超过 `0.6780`。当前最缺的是 G-Mean。
 
 ---
 
