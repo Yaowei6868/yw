@@ -67,41 +67,41 @@ Table~\ref{tab:overall-main} reports the overall comparison on Elliptic and Elli
   \caption{Overall performance. Higher is better.}
   \label{tab:overall-main}
   \scriptsize
-  \setlength{\tabcolsep}{2.2pt}
-  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lcccc@{}}
+  \setlength{\tabcolsep}{1.35pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lcccccc@{}}
     \toprule
-    Method & \multicolumn{2}{c}{Elliptic} & \multicolumn{2}{c}{Actor} \\
-    \cmidrule(lr){2-3}\cmidrule(lr){4-5}
-    & AUC & MF1 & AUC & MF1 \\
+    Method & \multicolumn{3}{c}{Elliptic} & \multicolumn{3}{c}{Actor} \\
+    \cmidrule(lr){2-4}\cmidrule(lr){5-7}
+    & AUC & GMean & MF1 & AUC & GMean & MF1 \\
     \midrule
-    TASD-CL & \textbf{.8713} & \textbf{.6521} & \textbf{.7249}$^\dagger$ & \textbf{.6394}$^\ddagger$ \\
+    TASD-CL & \textbf{.8713} & \textbf{.7874} & \textbf{.6521} & \textbf{.7249}$^\dagger$ & .6488 & \textbf{.6394}$^\ddagger$ \\
     \midrule
-    \multicolumn{5}{l}{\emph{Graph fraud detectors}} \\
-    CGNN & .8631 & .6163 & .6671 & .5455 \\
-    HOGRL & .8565 & .6176 & .6628 & .5455 \\
-    GradGNN & .8373 & .5822 & .6919 & .5035 \\
-    BSL & .7681 & .5621 & .6546 & .5590 \\
-    PMP & .6976 & .4932 & -- & -- \\
+    \multicolumn{7}{l}{\emph{Graph fraud detectors}} \\
+    CGNN & .8631 & .7750 & .6163 & .6671 & .6318 & .5455 \\
+    HOGRL & .8565 & .7596 & .6176 & .6628 & .6515 & .5455 \\
+    GradGNN & .8373 & .7364 & .5822 & .6919 & .6780 & .5035 \\
+    BSL & .7681 & .5952 & .5621 & .6546 & .6379 & .5590 \\
+    PMP & .6976 & .1768 & .4932 & -- & -- & -- \\
     \midrule
-    \multicolumn{5}{l}{\emph{Generic continual baselines}} \\
-    GCN & .8562 & .5870 & .6725 & .6274 \\
-    GraphSAGE & -- & -- & -- & -- \\
-    GCN+EWC & .8585 & .6086 & .6832 & .6194 \\
-    GCN+LwF & .8399 & .5683 & .6768 & .6021 \\
-    GCN+ER & .8511 & .6265 & .6733 & .6237 \\
+    \multicolumn{7}{l}{\emph{Generic continual baselines}} \\
+    GCN & .7794 & .7121 & .5598 & .6725 & .6290 & .6274 \\
+    GraphSAGE & .8346 & .7066 & .4979 & .6802 & .6551 & .5990 \\
+    GCN+EWC & .8585 & .7724 & .6086 & .6832 & .6508 & .6194 \\
+    GCN+LwF & .8399 & .7055 & .5683 & .6768 & .6473 & .6021 \\
+    GCN+ER & .8511 & .7599 & .6265 & .6733 & .6323 & .6237 \\
     \bottomrule
   \end{tabular*}
   \vspace{1pt}
   \begin{minipage}{0.96\linewidth}
   \scriptsize
-  AUC = AUC-ROC, MF1 = MacroF1. $^\dagger$/$^\ddagger$ are current Actor AUC/MF1-oriented operating points; PMP is omitted due to OOM.
+  AUC = AUC-ROC, GMean = G-Mean, MF1 = MacroF1. $^\dagger$/$^\ddagger$ are current Actor AUC/MF1-oriented operating points; PMP is omitted due to OOM.
   \end{minipage}
   % TODO: Add verified feature-only baselines: LR, RF, XGBoost, and MLP.
   % TODO: Replace the two Actor operating-point markers with one final fixed TASD-CL configuration after the unified Actor run is completed.
 \end{table}
 \FloatBarrier
 
-On Elliptic, TASD-CL improves AUC-ROC over the strongest fraud detection baseline, CGNN, from 0.8631 to 0.8713, and improves MacroF1 over the strongest baseline, GCN+ER, from 0.6265 to 0.6521. On Actor, the current AUC-oriented operating point improves AUC-ROC over GradGNN from 0.6919 to 0.7249, while the current MacroF1-oriented operating point improves MacroF1 over GCN from 0.6274 to 0.6394. These results support RQ1 and show that semantic-aware modeling is effective across transaction-level and actor/address-level temporal blockchain graphs.
+On Elliptic, TASD-CL improves AUC-ROC over the strongest fraud detection baseline, CGNN, from 0.8631 to 0.8713, improves G-Mean from 0.7750 to 0.7874, and improves MacroF1 over the strongest generic continual baseline, GCN+ER, from 0.6265 to 0.6521. Compared with GraphSAGE, TASD-CL improves AUC-ROC from 0.8346 to 0.8713, G-Mean from 0.7066 to 0.7874, and MacroF1 from 0.4979 to 0.6521. On Actor, the current AUC-oriented operating point improves AUC-ROC over GradGNN from 0.6919 to 0.7249, while the current MacroF1-oriented operating point improves MacroF1 over GCN from 0.6274 to 0.6394. These results support RQ1 and show that semantic-aware modeling is effective across transaction-level and actor/address-level temporal blockchain graphs.
 
 \subsection{RQ2: Component Contribution}
 \label{subsec:component-contribution}
