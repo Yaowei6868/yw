@@ -1,0 +1,323 @@
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{Framework Overview}
+\label{subsec:framework}
+
+We propose \textbf{TASD-CL}, a Temporal Adaptive Semantic Decomposition framework for continual graph fraud detection under task-only temporal snapshots. Given a chronological sequence of graph fraud tasks $\langle \mathcal{T}_1,\mathcal{T}_2,\ldots,\mathcal{T}_T\rangle$, each task $\mathcal{T}_t$ only provides the current graph snapshot $\mathcal{G}_t=(\mathcal{V}_t,\mathcal{E}_t,\mathbf{X}_t)$ and the available current-task supervision $\mathcal{L}^{\mathrm{tr}}_t$. After the model moves to later tasks, it cannot store, access, or replay historical nodes, historical edges, adjacency matrices, or historical subgraphs.
+
+The key idea of TASD-CL is to preserve fraud-discriminative semantics instead of historical graph structures. TASD-CL first uses a semantic decomposition backbone to expose normal behavioral semantics and abnormal fraud semantics from each node representation. It then performs alpha-guided routing to adaptively propagate risk-aware semantic messages over the current snapshot. Based on this semantic interface, TASD-CL introduces three preservation components. Subspace-Stratified Fisher Preservation (SSF) preserves semantically important parameters at the parameter level. Structure-free Semantic Prototype Consolidation (SPC) summarizes historical semantic distributions at the representation level. Subspace-Conditioned Distillation (SCD) transfers high-confidence normal and abnormal semantics at the semantic level. The overall framework is illustrated in Fig.~\ref{fig:framework}.
+
+\begin{figure*}[t]
+    \centering
+    \fbox{
+    \parbox[c][4.2cm][c]{0.92\textwidth}{
+        \centering
+        \textbf{Placeholder for the TASD-CL framework figure}\\[0.5em]
+        Task-only snapshot $\mathcal{G}_t$ $\rightarrow$ semantic decomposition backbone\\[0.3em]
+        normal semantic subspace $\mathbf{z}^{n}$ and abnormal semantic subspace $\mathbf{z}^{a}$\\[0.3em]
+        alpha-guided routing $\alpha$ $\rightarrow$ current-task fraud prediction\\[0.3em]
+        SSF, SPC, and SCD preserve fraud-discriminative semantics without historical graph replay
+    }}
+    \caption{Overall framework of TASD-CL. The model learns from the current graph snapshot only, decomposes node representations into normal and abnormal semantic subspaces, and preserves fraud-discriminative semantics through SSF, SPC, and SCD without storing historical graph structures.}
+    \label{fig:framework}
+\end{figure*}
+
+\subsection{Temporal Adaptive Semantic Decomposition}
+\label{subsec:semantic-decomposition}
+
+Temporal Adaptive Semantic Decomposition is the core semantic backbone of TASD-CL. Its goal is to transform each node representation into two risk-aware semantic views: a normal semantic view that describes regular behavioral patterns, and an abnormal semantic view that describes fraud-related deviations. This design is especially important under task-only temporal snapshots, because the model cannot rely on historical graph replay to recover previously observed fraud structures. The model therefore needs an explicit semantic interface that can be preserved across tasks.
+
+This backbone has three interfaces for the following preservation framework. First, the parameters used by semantic gating, normal/abnormal projection, and alpha-guided routing define the semantic mapping function. These parameters are protected by SSF. Second, the decomposed representations $\mathbf{z}^{n}$ and $\mathbf{z}^{a}$ provide compact semantic states of normal and abnormal behavior. These states are summarized by SPC. Third, the routing confidence $\alpha$ indicates whether a node is dominated by normal semantics or abnormal semantics. This confidence is used by SCD to select reliable semantic signals from the previous model. Thus, the semantic decomposition backbone is not only a predictor for the current task, but also the shared interface through which TASD-CL performs parameter-level, representation-level, and semantic-level preservation.
+
+Given a node $v\in\mathcal{V}_t$ with feature vector $\mathbf{x}_v$, TASD-CL first maps it into a hidden representation:
+\begin{equation}
+    \mathbf{h}_v
+    =
+    \sigma(\mathbf{W}_{in}\mathbf{x}_v+\mathbf{b}_{in}),
+\end{equation}
+where $\sigma(\cdot)$ is a nonlinear activation function. The node $v$ may represent a transaction, address, account, or actor depending on the graph granularity. TASD-CL operates on learned entity-level fraud semantics, so the decomposition mechanism does not depend on a fixed physical node type.
+
+TASD-CL then learns a semantic gate to determine how different dimensions of $\mathbf{h}_v$ should be assigned to normal and abnormal semantic branches:
+\begin{equation}
+    \mathbf{g}_v
+    =
+    \mathrm{sigmoid}(\mathbf{W}_g\mathbf{h}_v+\mathbf{b}_g).
+\end{equation}
+The semantic gate is a vector-valued soft partition over the hidden representation. It allows the model to allocate different feature dimensions to different semantic roles instead of forcing all information into one entangled representation. Based on this gate, TASD-CL constructs two semantic representations:
+\begin{equation}
+    \mathbf{z}^{n}_v
+    =
+    \mathbf{W}_{n}(\mathbf{g}_v \odot \mathbf{h}_v)+\mathbf{b}_{n},
+    \qquad
+    \mathbf{z}^{a}_v
+    =
+    \mathbf{W}_{a}((1-\mathbf{g}_v)\odot \mathbf{h}_v)+\mathbf{b}_{a},
+\end{equation}
+where $\mathbf{z}^{n}_v$ and $\mathbf{z}^{a}_v$ denote the normal and abnormal semantic representations. The normal branch is encouraged to encode common behavioral regularities, while the abnormal branch is encouraged to encode suspicious deviations and fraud-related risk patterns.
+
+The two semantic branches are then converted into a node-level routing confidence:
+\begin{equation}
+    \alpha_v
+    =
+    \mathrm{sigmoid}
+    \left(
+    \mathbf{a}^{\top}
+    \tanh
+    \left(
+    \mathbf{W}_{r}[\mathbf{z}^{n}_v \| \mathbf{z}^{a}_v]
+    \right)
+    \right),
+\end{equation}
+where $[\cdot\|\cdot]$ denotes concatenation. A larger $\alpha_v$ indicates that node $v$ is dominated by normal semantics, while a smaller $\alpha_v$ indicates that abnormal semantics are more salient. Unlike a fixed message passing rule, alpha-guided routing makes message propagation risk-aware at the node level.
+
+For message passing, TASD-CL forms the semantic message from source node $u$ to target node $v$ by adaptively combining the two semantic components of the source node:
+\begin{equation}
+    \mathbf{m}_{u\rightarrow v}
+    =
+    \alpha_u\mathbf{z}^{n}_u
+    +
+    (1-\alpha_u)\mathbf{z}^{a}_u .
+\end{equation}
+The target node aggregates semantic messages from its current-snapshot neighbors:
+\begin{equation}
+    \mathbf{h}'_v
+    =
+    \mathbf{W}_{u}
+    \sum_{u\in\mathcal{N}_t(v)}
+    \eta_{u,v}\mathbf{m}_{u\rightarrow v},
+    \qquad
+    o_v
+    =
+    \mathbf{W}_{c}\mathbf{h}'_v+\mathbf{b}_{c},
+\end{equation}
+where $\mathcal{N}_t(v)$ denotes the neighbor set of $v$ in the current snapshot, $\eta_{u,v}$ is a normalization coefficient, and $o_v$ is the fraud prediction logit. This aggregation uses only edges in $\mathcal{G}_t$, so no historical graph connectivity is involved during training.
+
+To make the normal and abnormal branches distinguishable, TASD-CL applies semantic regularization on labeled training nodes. The decoupling term reduces the cosine similarity between the two semantic representations:
+\begin{equation}
+    \mathcal{L}_{dec}^{(t)}
+    =
+    \frac{1}{|\mathcal{L}^{\mathrm{tr}}_t|}
+    \sum_{v\in\mathcal{L}^{\mathrm{tr}}_t}
+    \left(
+    \cos(\mathbf{z}^{n}_v,\mathbf{z}^{a}_v)
+    \right)^2 .
+\end{equation}
+The role-consistency term encourages normal nodes to activate the normal branch more strongly and fraudulent nodes to activate the abnormal branch more strongly:
+\begin{equation}
+    \mathcal{L}_{role}^{(t)}
+    =
+    \frac{1}{|\mathcal{L}^{\mathrm{tr}}_t|}
+    \sum_{v\in\mathcal{L}^{\mathrm{tr}}_t}
+    \begin{cases}
+    \max(0,\|\mathbf{z}^{a}_v\|-\|\mathbf{z}^{n}_v\|+\gamma), & y_v=0,\\
+    \max(0,\|\mathbf{z}^{n}_v\|-\|\mathbf{z}^{a}_v\|+\gamma), & y_v=1,
+    \end{cases}
+\end{equation}
+where $\gamma$ is a margin. The gate regularization term aligns the average semantic gate with node labels and discourages gate collapse:
+\begin{equation}
+    \mathcal{L}_{gate}^{(t)}
+    =
+    \frac{1}{|\mathcal{L}^{\mathrm{tr}}_t|}
+    \sum_{v\in\mathcal{L}^{\mathrm{tr}}_t}
+    \mathrm{BCE}(\bar{g}_v,1-y_v)
+    +
+    \beta_g
+    \left(
+    \frac{1}{|\mathcal{L}^{\mathrm{tr}}_t|}
+    \sum_{v\in\mathcal{L}^{\mathrm{tr}}_t}
+    \bar{g}_v
+    -
+    0.5
+    \right)^2,
+\end{equation}
+where $\bar{g}_v$ is the mean gate value of node $v$ and $\beta_g$ controls the gate-balance penalty. The supervised fraud detection loss on the current snapshot is
+\begin{equation}
+    \mathcal{L}_{task}^{(t)}
+    =
+    \frac{1}{|\mathcal{L}^{\mathrm{tr}}_t|}
+    \sum_{v\in\mathcal{L}^{\mathrm{tr}}_t}
+    \ell_{focal}(o_v,y_v),
+\end{equation}
+where the focal loss is instantiated with task-adaptive class weighting to handle severe class imbalance. The current-task TASD objective is
+\begin{equation}
+\label{eq:tasd-loss}
+    \mathcal{L}_{tasd}^{(t)}
+    =
+    \mathcal{L}_{task}^{(t)}
+    +
+    \lambda_{dec}\mathcal{L}_{dec}^{(t)}
+    +
+    \lambda_{role}\mathcal{L}_{role}^{(t)}
+    +
+    \lambda_{gate}\mathcal{L}_{gate}^{(t)} .
+\end{equation}
+
+\subsection{Subspace-Stratified Fisher Preservation}
+\label{subsec:ssf}
+
+SSF preserves fraud-discriminative semantics at the parameter level. The parameters of TASD-CL play different semantic roles. Parameters in the semantic gate, alpha-guided routing, and normal/abnormal projections directly define how fraud-discriminative semantics are separated and propagated. Parameters closer to input mapping or final classification are more task-adaptive. SSF therefore preserves parameters according to their semantic roles.
+
+After task $t-1$, TASD-CL stores the parameter snapshot $\theta^*_{t-1}$ and estimates Fisher importance $\mathbf{F}_{t-1}$ using the supervision available in that task. During task $t$, SSF penalizes changes to semantically important parameters:
+\begin{equation}
+\label{eq:ssf}
+    \mathcal{L}_{ssf}^{(t)}
+    =
+    \sum_{p}
+    \rho_p
+    \sum_{j}
+    F_{t-1,p,j}
+    \left(
+    \theta_{p,j}-\theta^{*}_{t-1,p,j}
+    \right)^2,
+\end{equation}
+where $p$ indexes semantic parameter groups, $j$ indexes parameters within a group, and $\rho_p$ is a subspace-role multiplier. Larger multipliers are assigned to decomposition and routing parameters, so SSF stabilizes the semantic interface without storing historical graph structures.
+
+\subsection{Structure-free Semantic Prototype Consolidation}
+\label{subsec:spc}
+
+SPC preserves fraud-discriminative semantics at the representation level. Under task-only snapshots, historical graph structures cannot be replayed in later tasks. SPC therefore summarizes historical semantic distributions in a structure-free way.
+
+After task $i$, for each class $c\in\{0,1\}$ and semantic subspace $s\in\{n,a\}$, TASD-CL computes Gaussian prototype statistics over labeled training nodes:
+\begin{equation}
+    \boldsymbol{\mu}_{i,c}^{s}
+    =
+    \frac{1}{|\mathcal{L}^{\mathrm{tr}}_{i,c}|}
+    \sum_{v\in\mathcal{L}^{\mathrm{tr}}_{i,c}}
+    \mathbf{z}^{s}_v,
+    \qquad
+    \boldsymbol{\sigma}_{i,c}^{s}
+    =
+    \mathrm{Std}
+    \left(
+    \{\mathbf{z}^{s}_v \mid v\in\mathcal{L}^{\mathrm{tr}}_{i,c}\}
+    \right),
+\end{equation}
+where $\mathcal{L}^{\mathrm{tr}}_{i,c}=\{v\in\mathcal{L}^{\mathrm{tr}}_i\mid y_v=c\}$. The prototype memory $\mathcal{P}_{t-1}$ stores only these distributional statistics and discards the original graph structures. In implementation, prototype extraction is skipped when a task contains too few fraudulent training nodes, preventing unreliable minority-class prototypes from contaminating the memory.
+
+In task $t$, SPC samples semantic embeddings from stored prototypes:
+\begin{equation}
+    \tilde{\mathbf{z}}^{s}
+    =
+    \boldsymbol{\mu}_{i,c}^{s}
+    +
+    (\boldsymbol{\sigma}_{i,c}^{s}+\delta)
+    \odot
+    \boldsymbol{\epsilon},
+    \qquad
+    \boldsymbol{\epsilon}\sim\mathcal{N}(0,\mathbf{I}),
+\end{equation}
+where $\delta$ is a small constant for numerical stability. The sampled normal and abnormal semantic embeddings bypass graph message passing and are fed into the replay forward head:
+\begin{equation}
+\label{eq:spc}
+    \mathcal{L}_{spc}^{(t)}
+    =
+    \mathrm{BCEWithLogits}
+    \left(
+    f_{\theta_t}^{rep}
+    (
+    \tilde{\mathbf{z}}^{n},
+    \tilde{\mathbf{z}}^{a}
+    ),
+    c
+    \right),
+\end{equation}
+where $f_{\theta_t}^{rep}(\cdot)$ maps sampled semantic embeddings to fraud logits without graph propagation. SPC thus preserves historical semantic distributions at the representation level while remaining free of historical graph structures.
+
+\subsection{Subspace-Conditioned Distillation}
+\label{subsec:scd}
+
+SCD preserves fraud-discriminative semantics at the semantic level. Output-level distillation transfers only prediction probabilities and cannot distinguish whether the transferred signal corresponds to normal behavioral semantics or abnormal fraud semantics. SCD performs semantic-level distillation in the decomposed subspaces of TASD-CL.
+
+During task $t$, both the previous model $f_{\theta^*_{t-1}}$ and the current model $f_{\theta_t}$ process the current snapshot $\mathcal{G}_t$. The previous model produces a node-level routing confidence $\alpha^{old}_v$ for each node. Larger $\alpha^{old}_v$ indicates stronger normal semantics, while smaller $\alpha^{old}_v$ indicates stronger abnormal semantics. We define high-confidence semantic sets as
+\begin{equation}
+    \mathcal{H}^{a}_t
+    =
+    \{v\in\mathcal{V}_t \mid \alpha^{old}_v < \tau\},
+    \qquad
+    \mathcal{H}^{n}_t
+    =
+    \{v\in\mathcal{V}_t \mid \alpha^{old}_v > 1-\tau\},
+\end{equation}
+where $\tau$ is the confidence threshold. The SCD loss is
+\begin{equation}
+\label{eq:scd}
+    \mathcal{L}_{scd}^{(t)}
+    =
+    2
+    \cdot
+    \frac{1}{|\mathcal{H}^{a}_t|}
+    \sum_{v\in\mathcal{H}^{a}_t}
+    \left\|
+    \mathbf{z}^{a,new}_{v}
+    -
+    \mathbf{z}^{a,old}_{v}
+    \right\|_2^2
+    +
+    \frac{1}{|\mathcal{H}^{n}_t|}
+    \sum_{v\in\mathcal{H}^{n}_t}
+    \left\|
+    \mathbf{z}^{n,new}_{v}
+    -
+    \mathbf{z}^{n,old}_{v}
+    \right\|_2^2 .
+\end{equation}
+If either high-confidence set contains too few nodes, the corresponding term is omitted. The abnormal subspace receives a larger weight because fraudulent entities are sparse and abnormal semantic signals are more vulnerable to majority-class domination.
+
+\subsection{Overall Objective and Training Algorithm}
+\label{subsec:overall-objective}
+
+For task $t$, the structure-free information used by the semantic preservation terms is collected as
+\begin{equation}
+    \mathcal{M}_{t-1}
+    =
+    \{\theta^*_{t-1}, \mathbf{F}_{t-1}, \mathcal{P}_{t-1}, f_{\theta^*_{t-1}}\},
+\end{equation}
+where $\theta^*_{t-1}$ is the previous model snapshot, $\mathbf{F}_{t-1}$ is semantic Fisher importance, $\mathcal{P}_{t-1}$ is the semantic prototype memory, and $f_{\theta^*_{t-1}}$ is the teacher model for SCD. The teacher model stores parameters only and contains no historical graph structures.
+
+The complete objective consists of four parts:
+\begin{equation}
+\label{eq:overall}
+    \mathcal{L}^{(t)}
+    =
+    \mathcal{L}_{tasd}^{(t)}
+    +
+    \lambda_{ssf}\mathcal{L}_{ssf}^{(t)}
+    +
+    \lambda_{spc}\mathcal{L}_{spc}^{(t)}
+    +
+    \lambda_{scd}\mathcal{L}_{scd}^{(t)} .
+\end{equation}
+Here, $\mathcal{L}_{tasd}^{(t)}$ learns the current task and regularizes the normal/abnormal semantic decomposition. $\mathcal{L}_{ssf}^{(t)}$, $\mathcal{L}_{spc}^{(t)}$, and $\mathcal{L}_{scd}^{(t)}$ provide parameter-level, representation-level, and semantic-level preservation, respectively. For the first warm-up task, the preservation terms that depend on historical memory are inactive.
+
+TASD-CL satisfies the task-only snapshot constraint because each training step uses only the current temporal graph connectivity. SSF stores only parameter importance, SPC stores only distributional statistics in semantic subspaces, and SCD uses only the previous model snapshot. The preserved information remains structure-free after each task.
+
+\begin{algorithm}[t]
+\caption{Training Procedure of TASD-CL}
+\label{alg:tasdcl}
+\begin{algorithmic}[1]
+\REQUIRE A stream of sequentially arriving task-only graph snapshots $\{\mathcal{G}_t\}_{t=1}^{T}$
+\ENSURE Trained TASD-CL model
+\STATE Initialize TASD-CL parameters $\theta_0$ and structure-free memory $\mathcal{M}_0=\emptyset$
+\FOR{$t=1$ to $T$}
+    \STATE Construct the current snapshot $\mathcal{G}_t$ by keeping only current-window graph connectivity
+    \STATE Compute task-adaptive focal loss weight from current-task labels
+    \FOR{each training epoch}
+        \STATE Obtain $\mathbf{z}^{n}$, $\mathbf{z}^{a}$, and $\alpha$ through Temporal Adaptive Semantic Decomposition
+        \STATE Perform alpha-guided message aggregation on $\mathcal{G}_t$ and compute fraud logits
+        \STATE Compute $\mathcal{L}_{tasd}^{(t)}$ using current-task labels
+        \IF{$t>1$}
+            \STATE Compute $\mathcal{L}_{ssf}^{(t)}$ using semantic Fisher importance $\mathbf{F}_{t-1}$
+            \STATE Compute $\mathcal{L}_{spc}^{(t)}$ using structure-free semantic prototypes $\mathcal{P}_{t-1}$
+            \STATE Compute $\mathcal{L}_{scd}^{(t)}$ using the previous model snapshot $f_{\theta^*_{t-1}}$
+        \ENDIF
+        \STATE Update parameters by minimizing Eq.~(\ref{eq:overall})
+    \ENDFOR
+    \STATE Estimate semantic parameter importance for SSF
+    \STATE Extract reliable normal and abnormal semantic prototypes for SPC
+    \STATE Store the current model snapshot for SCD
+    \STATE Discard the current graph snapshot before the next task
+\ENDFOR
+\RETURN Trained TASD-CL model
+\end{algorithmic}
+\end{algorithm}

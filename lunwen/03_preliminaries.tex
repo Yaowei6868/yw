@@ -1,0 +1,35 @@
+\section{Preliminaries}
+\label{sec:preliminaries}
+
+\subsection{Basic Concepts}
+\label{subsec:basic-concepts}
+
+\noindent\textbf{Definition 1. Task-only Snapshot Setting.}
+A temporal blockchain fraud graph is divided into a chronologically ordered task sequence $\langle \mathcal{T}_1,\mathcal{T}_2,\ldots,\mathcal{T}_T\rangle$. Each task $\mathcal{T}_t$ provides only the current graph snapshot $\mathcal{G}_t=(\mathcal{V}_t,\mathcal{E}_t,\mathbf{X}_t)$ and current-task supervision $\mathcal{L}^{\mathrm{tr}}_t$. After moving to later tasks, the model cannot store, access, or replay historical nodes, historical edges, adjacency matrices, or subgraphs. Only structure-free information, such as model parameters, parameter importance estimates, or compact semantic statistics, can be retained.
+
+\noindent\textbf{Definition 2. Continual Fraud Detection Task.}
+At task $\mathcal{T}_t$, the goal is to learn a risk prediction model $f_{\theta_t}$ that assigns a fraud risk score $s_v=f_{\theta_t}(v,\mathcal{G}_t)$ to each node $v\in\mathcal{V}_t$. For labeled nodes, $y_v=1$ denotes fraud and $y_v=0$ denotes normal. Unlabeled nodes may participate in graph propagation, while they are excluded from supervised loss and metric computation. The model should adapt to the current snapshot while maintaining stable recognition of fraud-discriminative semantics learned from previous tasks.
+
+\noindent\textbf{Definition 3. Fraud Semantic Representation.}
+Fraud-discriminative semantics refer to the semantic evidence that distinguishes normal entities from fraudulent entities. TASD-CL represents each node with a normal semantic component $\mathbf{z}^{n}_v$, an abnormal semantic component $\mathbf{z}^{a}_v$, and an alpha-guided routing confidence $\alpha_v$. A larger $\alpha_v$ indicates stronger normal semantics, while a smaller $\alpha_v$ indicates stronger abnormal semantics. This semantic interface supports risk-aware message aggregation and continual semantic preservation.
+
+Figure~\ref{fig:task-only-snapshot} visualizes the task-only snapshot setting defined above.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/task_only_snapshot.png}
+    \caption{Task-only snapshot setting for continual graph fraud detection. At task $\mathcal{T}_t$, the model can access only the current graph snapshot $\mathcal{G}_t$. Historical nodes, edges, adjacency matrices, and subgraphs from previous snapshots are unavailable for training or replay, while only structure-free information such as model parameters, parameter importance estimates, and compact semantic summaries can be retained.}
+    \label{fig:task-only-snapshot}
+\end{figure}
+
+\noindent\textbf{Definition 4. Historical Semantic Prototype.}
+A historical semantic prototype is a structure-free summary of previously learned semantic distributions. After task $\mathcal{T}_i$, TASD-CL stores compact statistics $\mathcal{P}^{s}_{i,c}=(\boldsymbol{\mu}^{s}_{i,c},\boldsymbol{\sigma}^{s}_{i,c})$ for class $c\in\{0,1\}$ and semantic subspace $s\in\{n,a\}$. These prototypes contain only distributional statistics of semantic representations and do not contain historical nodes, edges, adjacency matrices, or subgraphs.
+
+\subsection{Problem Statement}
+\label{subsec:problem-statement}
+
+Given a sequence of task-only temporal blockchain fraud detection tasks $\langle \mathcal{T}_1,\mathcal{T}_2,\ldots,\mathcal{T}_T\rangle$, each task $\mathcal{T}_t$ provides only the current graph snapshot $\mathcal{G}_t=(\mathcal{V}_t,\mathcal{E}_t,\mathbf{X}_t)$ and the available current-task supervision $\mathcal{L}^{\mathrm{tr}}_t$. The objective is to learn $f_{\theta_t}$ for node-level fraud risk prediction in the current snapshot, while preserving fraud-discriminative semantics across evolving temporal tasks under historical graph inaccessibility.
+
+This formulation can cover blockchain fraud graphs with different node granularities because it defines the task at the level of risk-bearing graph entities and their relational evidence. In a transaction-as-node graph, each node denotes a transaction and edges describe transaction-flow dependencies between transactions. In an address-as-node graph, each node denotes an address, account, or actor-level entity and edges describe transfer or interaction relations between entities. Although the concrete meanings of nodes and edges differ across these graph types, both can be represented by the same snapshot form $\mathcal{G}_t=(\mathcal{V}_t,\mathcal{E}_t,\mathbf{X}_t)$ and solved by the same node-level prediction function $f_{\theta_t}(v,\mathcal{G}_t)$. Under this abstraction, a node is the entity whose fraud risk should be predicted, an edge is the relational evidence used for message propagation, and the temporal task sequence captures how fraud-discriminative semantics evolve over time.
+
+Our experimental datasets are selected to instantiate this formulation at two complementary graph granularities. Elliptic represents transaction-level blockchain fraud detection, where the model is evaluated on transaction entities and transaction-flow relations. Elliptic++ Actor represents actor/address-level blockchain fraud detection, where the model is evaluated on higher-level blockchain entities and their interaction relations. These two granularities cover both fine-grained transaction risk recognition and entity-level behavioral risk recognition, which are two representative forms of node-level fraud detection in blockchain graphs. Since both datasets are temporally organized, highly imbalanced, and constructed over blockchain relational structures, evaluating TASD-CL on them provides broad evidence for task-only temporal blockchain fraud detection across different graph granularities.

@@ -1,0 +1,38 @@
+name: elliptic_robust_window5_CGNN
+
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  input_dim: ???
+  hidden_dim: 128
+  output_dim: 1
+  dropout: 0.5
+  num_heads: 4
+train:
+  dataset: elliptic
+  model: cgnn
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/robustness/elliptic_robust_window5_CGNN
+
+  num_epochs_per_task: 50
+  task_schedule:
+    - [1, 10]
+    - [11, 20]
+    - [21, 30]
+    - [31, 40]
+    - [41, 49]
+  ewc_lambda: 0.0
+  spc_lambda: 0.0
+  spc_n_samples: 32
+  scd_lambda: 0.0
+  scd_tau: 0.5
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0
+  threshold: 0.5

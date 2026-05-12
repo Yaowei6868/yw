@@ -25,29 +25,30 @@ warnings.filterwarnings("ignore")
 # 分组用于 LaTeX 表格中的 \midrule 分隔
 # =============================================================================
 METHOD_MAP = {
-    # ── Elliptic ──────────────────────────────────────────────────────────
-    "elliptic_Naive_GCN":           ("GCN (Sequential)",    "Elliptic",  "A-Static"),
-    "elliptic_Naive_HOGRL":         ("HOGRL (IJCAI'24)",    "Elliptic",  "B-SOTA"),
-    "elliptic_Naive_CGNN":          ("CGNN (AAAI'25)",      "Elliptic",  "B-SOTA"),
-    "elliptic_Naive_ConsisGAD":     ("ConsisGAD (ICLR'24)", "Elliptic",  "B-SOTA"),
-    "elliptic_Naive_Grad":          ("GradGNN (WWW'25)",    "Elliptic",  "B-SOTA"),
-    "elliptic_Naive_BSL":           ("BSL (AAAI'24, Seq.)", "Elliptic",  "B-SOTA"),
-    "elliptic_EWC_BSL":             ("BSL + EWC",           "Elliptic",  "C-CL"),
-    "elliptic_LwF_BSL":             ("BSL + LwF",           "Elliptic",  "C-CL"),
-    "elliptic_ER_BSL":              ("BSL + ER",            "Elliptic",  "C-CL"),
-    "elliptic_TASDCL_BSL":          ("TASD-CL (Ours)",      "Elliptic",  "D-Ours"),
+    # Elliptic
+    "elliptic_GCN":                 ("GCN (Sequential)",    "Elliptic",  "A-Static"),
+    "elliptic_GraphSAGE":           ("GraphSAGE",           "Elliptic",  "A-Static"),
+    "elliptic_HOGRL":               ("HOGRL (IJCAI'24)",    "Elliptic",  "B-SOTA"),
+    "elliptic_CGNN":                ("CGNN (AAAI'25)",      "Elliptic",  "B-SOTA"),
+    "elliptic_GradGNN":             ("GradGNN (WWW'25)",    "Elliptic",  "B-SOTA"),
+    "elliptic_BSL":                 ("BSL (AAAI'24, Seq.)", "Elliptic",  "B-SOTA"),
+    "elliptic_PMP":                 ("PMP (ICLR'24)",       "Elliptic",  "B-SOTA"),
+    "elliptic_EWC_GCN":             ("GCN+EWC",             "Elliptic",  "C-CL"),
+    "elliptic_LwF_GCN":             ("GCN+LwF",             "Elliptic",  "C-CL"),
+    "elliptic_ER_GCN":              ("GCN+ER",              "Elliptic",  "C-CL"),
+    "elliptic_TASDCL":              ("TASD-CL (Ours)",      "Elliptic",  "D-Ours"),
 
-    # ── Elliptic++ Actor ──────────────────────────────────────────────────
-    "elliptic_actor_Naive_GCN":         ("GCN (Sequential)",    "Elliptic++", "A-Static"),
-    "elliptic_actor_Naive_HOGRL":       ("HOGRL (IJCAI'24)",    "Elliptic++", "B-SOTA"),
-    "elliptic_actor_Naive_CGNN":        ("CGNN (AAAI'25)",      "Elliptic++", "B-SOTA"),
-    "elliptic_actor_Naive_ConsisGAD":   ("ConsisGAD (ICLR'24)", "Elliptic++", "B-SOTA"),
-    "elliptic_actor_Naive_Grad":        ("GradGNN (WWW'25)",    "Elliptic++", "B-SOTA"),
-    "elliptic_actor_Naive_BSL":         ("BSL (AAAI'24, Seq.)", "Elliptic++", "B-SOTA"),
-    "elliptic_actor_EWC_BSL":           ("BSL + EWC",           "Elliptic++", "C-CL"),
-    "elliptic_actor_LwF_BSL":           ("BSL + LwF",           "Elliptic++", "C-CL"),
-    "elliptic_actor_ER_BSL":            ("BSL + ER",            "Elliptic++", "C-CL"),
-    "elliptic_actor_TASDCL_BSL":        ("TASD-CL (Ours)",      "Elliptic++", "D-Ours"),
+    # Actor
+    "actor_GCN":                    ("GCN (Sequential)",    "Actor", "A-Static"),
+    "actor_GraphSAGE":              ("GraphSAGE",           "Actor", "A-Static"),
+    "actor_HOGRL":                  ("HOGRL (IJCAI'24)",    "Actor", "B-SOTA"),
+    "actor_CGNN":                   ("CGNN (AAAI'25)",      "Actor", "B-SOTA"),
+    "actor_GradGNN":                ("GradGNN (WWW'25)",    "Actor", "B-SOTA"),
+    "actor_BSL":                    ("BSL (AAAI'24, Seq.)", "Actor", "B-SOTA"),
+    "actor_EWC_GCN":                ("GCN+EWC",             "Actor", "C-CL"),
+    "actor_LwF_GCN":                ("GCN+LwF",             "Actor", "C-CL"),
+    "actor_ER_GCN":                 ("GCN+ER",              "Actor", "C-CL"),
+    "actor_TASDCL":                 ("TASD-CL (Ours)",      "Actor", "D-Ours"),
 }
 
 # 最终汇总表用到的指标列 (CSV 中的原始列名)
@@ -69,14 +70,16 @@ METRIC_DISPLAY = {
 # 论文中方法出现的顺序
 METHOD_ORDER = [
     "GCN (Sequential)",
+    "GraphSAGE",
     "HOGRL (IJCAI'24)",
     "CGNN (AAAI'25)",
     "ConsisGAD (ICLR'24)",
     "GradGNN (WWW'25)",
     "BSL (AAAI'24, Seq.)",
-    "BSL + EWC",
-    "BSL + LwF",
-    "BSL + ER",
+    "PMP (ICLR'24)",
+    "GCN+EWC",
+    "GCN+LwF",
+    "GCN+ER",
     "TASD-CL (Ours)",
 ]
 
@@ -160,7 +163,7 @@ def print_table(summary_df: pd.DataFrame):
 
     metric_cols = list(METRIC_DISPLAY.values())
 
-    for dataset in ["Elliptic", "Elliptic++"]:
+    for dataset in ["Elliptic", "Actor"]:
         sub = summary_df[summary_df["Dataset"] == dataset]
         if sub.empty:
             continue
@@ -236,13 +239,13 @@ def save_pertask_csv(records: list[dict], out_dir: str):
 
 
 def save_latex(summary_df: pd.DataFrame, out_dir: str):
-    """生成 LaTeX booktabs 表格（Elliptic + Elliptic++ 各一张）"""
+    """生成 LaTeX booktabs 表格（Elliptic + Actor 各一张）"""
     if summary_df.empty:
         return
 
     metric_cols_display = list(METRIC_DISPLAY.values())
 
-    for dataset in ["Elliptic", "Elliptic++"]:
+    for dataset in ["Elliptic", "Actor"]:
         sub = summary_df[summary_df["Dataset"] == dataset].copy()
         if sub.empty:
             continue
@@ -324,8 +327,8 @@ def main():
     args = parser.parse_args()
 
     # 切换到脚本所在目录，保证相对路径正确
-    script_dir = Path(__file__).parent
-    os.chdir(script_dir)
+    script_dir = Path(__file__).resolve().parent
+    os.chdir(script_dir.parent)
 
     print("\n" + "=" * 60)
     print("  collect_results.py — 实验结果收集器")

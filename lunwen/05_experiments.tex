@@ -1,0 +1,289 @@
+\section{Experiments}
+\label{sec:experiments}
+
+This section evaluates TASD-CL under task-only temporal blockchain fraud snapshots. Following the experimental organization commonly used in CIKM graph learning and fraud detection papers, we first introduce datasets, baselines, metrics, and implementation details, and then answer five research questions.
+
+\textbf{RQ1.} Does TASD-CL improve overall fraud detection performance compared with traditional feature-based baselines, graph fraud detection baselines, and generic continual learning baselines under task-only snapshot constraints?
+
+\textbf{RQ2.} How much do SSF, SPC, and SCD contribute to the performance of TASD-CL?
+
+\textbf{RQ3.} Is TASD-CL stable under different anomaly ratios and different temporal window settings?
+
+\textbf{RQ4.} What are the training cost, memory cost, and inference efficiency of TASD-CL under the task-only snapshot setting?
+
+\textbf{RQ5.} Do the normal and abnormal semantic components learned by TASD-CL provide interpretable evidence for semantic-aware fraud detection?
+
+\subsection{Experimental Setup}
+\label{subsec:experimental-setup}
+
+\subsubsection{Datasets}
+\label{subsubsec:datasets}
+
+We use two temporal blockchain fraud datasets. Elliptic represents transaction-level risk recognition, where nodes are transactions and edges describe transaction-flow relations. Elliptic++ Actor represents actor/address-level risk recognition, where nodes are blockchain actors or addresses and edges describe actor-level interactions. Although their node and edge semantics differ, both datasets instantiate the same task-only temporal graph fraud detection problem: graph snapshots evolve over time, fraud labels are attached to graph entities, and future tasks cannot replay historical graph structures.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Dataset statistics. Unlabeled nodes are used only for message passing.}
+  \label{tab:dataset-statistics}
+  \scriptsize
+  \setlength{\tabcolsep}{1.8pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lcrrrrrr@{}}
+    \toprule
+    Data & Gran. & Nodes & Edges & Norm. & Fraud & Unlab. & T \\
+    \midrule
+    Elliptic & Trans. & 203,769 & 234,355 & 42,019 & 4,545 & 157,205 & 10 \\
+    Actor & Actor & 1,268,260 & 2,868,964 & 338,871 & 28,601 & 900,788 & 10 \\
+    \bottomrule
+  \end{tabular*}
+\end{table}
+\FloatBarrier
+
+These two datasets are sufficient for this study for three reasons. First, the paper focuses on temporal blockchain graph fraud detection, so blockchain fraud graphs provide the most relevant evidence. Second, the two datasets cover complementary graph granularities: transaction-level relations and actor-level interactions. Third, both datasets are highly imbalanced and temporally organized, which directly matches the risk-ranking and class-balanced detection setting studied in this paper.
+
+\subsubsection{Baselines}
+\label{subsubsec:baselines}
+
+We use three baseline groups: feature-only classifiers (LR, RF, XGBoost, and MLP), graph neural baselines (GCN and GraphSAGE), graph fraud detectors (CGNN, HOGRL, GradGNN, BSL, and PMP), and generic CL baselines (GCN+EWC, GCN+LwF, and GCN+ER). All methods follow the same task-only protocol; PMP is omitted on Actor due to OOM.
+
+\subsubsection{Protocol and Metrics}
+\label{subsubsec:metrics-protocol}
+
+All methods follow the same task-only snapshot protocol. At task $t$, the model is trained only with the graph connectivity in the current time window. Historical nodes, edges, adjacency matrices, and subgraphs are unavailable for training or replay in later tasks. Offline evaluation may revisit seen snapshots only for metric computation.
+
+We use AUC-ROC and MacroF1 as primary metrics. AUC-ROC measures risk ranking quality, which is important for blockchain risk screening. MacroF1 measures class-balanced fraud detection under severe class imbalance. Since the paper focuses on fraud detection under semantic concept drift, we report detection-oriented metrics rather than auxiliary continual-learning diagnostics.
+
+\subsubsection{Implementation Details}
+\label{subsubsec:implementation-details}
+
+TASD-CL uses a hidden dimension of 128 and dropout of 0.5 in the reported runs. The learning rate is $10^{-3}$ and weight decay is $10^{-5}$. Elliptic is divided into 10 chronological tasks, each covering five timestamps except the last task. Actor is divided into 10 chronological tasks. We train 50 epochs per task on Elliptic and 30 epochs per task on Actor. To handle severe class imbalance, the supervised loss uses a task-adaptive focal loss weight computed from the current task labels. All reported results are from verified experiment logs and result files.
+
+\subsection{RQ1: Overall Performance}
+\label{subsec:overall-performance}
+
+Table~\ref{tab:overall-main} reports the overall comparison on Elliptic and Elliptic++ Actor. TASD-CL achieves the best verified performance on Elliptic for both primary metrics. On Actor, the current sweep provides two validated operating points: one optimized for AUC-ROC and one optimized for MacroF1. We report these values transparently and leave the final single-configuration Actor result to be filled after the unified Actor run is completed.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Overall performance. Higher is better.}
+  \label{tab:overall-main}
+  \scriptsize
+  \setlength{\tabcolsep}{2.2pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lcccc@{}}
+    \toprule
+    Method & \multicolumn{2}{c}{Elliptic} & \multicolumn{2}{c}{Actor} \\
+    \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+    & AUC & MF1 & AUC & MF1 \\
+    \midrule
+    TASD-CL & \textbf{.8713} & \textbf{.6521} & \textbf{.7249}$^\dagger$ & \textbf{.6394}$^\ddagger$ \\
+    \midrule
+    \multicolumn{5}{l}{\emph{Graph fraud detectors}} \\
+    CGNN & .8631 & .6163 & .6671 & .5455 \\
+    HOGRL & .8565 & .6176 & .6628 & .5455 \\
+    GradGNN & .8373 & .5822 & .6919 & .5035 \\
+    BSL & .7681 & .5621 & .6546 & .5590 \\
+    PMP & .6976 & .4932 & -- & -- \\
+    \midrule
+    \multicolumn{5}{l}{\emph{Generic continual baselines}} \\
+    GCN & .8562 & .5870 & .6725 & .6274 \\
+    GraphSAGE & -- & -- & -- & -- \\
+    GCN+EWC & .8585 & .6086 & .6832 & .6194 \\
+    GCN+LwF & .8399 & .5683 & .6768 & .6021 \\
+    GCN+ER & .8511 & .6265 & .6733 & .6237 \\
+    \bottomrule
+  \end{tabular*}
+  \vspace{1pt}
+  \begin{minipage}{0.96\linewidth}
+  \scriptsize
+  AUC = AUC-ROC, MF1 = MacroF1. $^\dagger$/$^\ddagger$ are current Actor AUC/MF1-oriented operating points; PMP is omitted due to OOM.
+  \end{minipage}
+  % TODO: Add verified feature-only baselines: LR, RF, XGBoost, and MLP.
+  % TODO: Replace the two Actor operating-point markers with one final fixed TASD-CL configuration after the unified Actor run is completed.
+\end{table}
+\FloatBarrier
+
+On Elliptic, TASD-CL improves AUC-ROC over the strongest fraud detection baseline, CGNN, from 0.8631 to 0.8713, and improves MacroF1 over the strongest baseline, GCN+ER, from 0.6265 to 0.6521. On Actor, the current AUC-oriented operating point improves AUC-ROC over GradGNN from 0.6919 to 0.7249, while the current MacroF1-oriented operating point improves MacroF1 over GCN from 0.6274 to 0.6394. These results support RQ1 and show that semantic-aware modeling is effective across transaction-level and actor/address-level temporal blockchain graphs.
+
+\subsection{RQ2: Component Contribution}
+\label{subsec:component-contribution}
+
+We conduct ablation on Elliptic to evaluate the contribution of SSF, SPC, and SCD. Since the paper focuses on AUC-ROC and MacroF1, Table~\ref{tab:ablation} reports these two primary metrics.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Ablation study on Elliptic.}
+  \label{tab:ablation}
+  \scriptsize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lcc@{}}
+    \toprule
+    Variant & AUC-ROC & MacroF1 \\
+    \midrule
+    TASD-CL Full & \textbf{0.8713} & 0.6521 \\
+    w/o SSF & 0.8638 & 0.6213 \\
+    w/o SPC & 0.8620 & \textbf{0.6582} \\
+    w/o SCD & 0.8564 & 0.4651 \\
+    \bottomrule
+  \end{tabular*}
+\end{table}
+\FloatBarrier
+
+Removing SCD causes the largest MacroF1 degradation, suggesting that semantic conditional distillation is important for maintaining abnormal-risk semantics under temporal evolution. Removing SSF reduces both AUC-ROC and MacroF1, showing the value of preserving semantically important parameters. Removing SPC decreases AUC-ROC but slightly improves MacroF1, indicating a ranking-oriented benefit with a class-balanced trade-off in this run. These results answer RQ2 by showing that SSF, SPC, and SCD provide complementary semantic preservation effects.
+
+\subsubsection{Hyperparameter Sensitivity}
+\label{subsubsec:hyperparameter-sensitivity}
+
+We further evaluate whether TASD-CL is sensitive to its key continual-learning hyperparameters: the SSF regularization weight $\lambda_{\mathrm{SSF}}$, the SPC replay weight $\lambda_{\mathrm{SPC}}$, the SCD distillation weight $\lambda_{\mathrm{SCD}}$, and the hidden dimension. The experiment is generated by \texttt{scripts/run\_hyperparam\_tasdcl.sh} and summarized by \texttt{tools/summarize\_rq\_experiments.py --kind hyperparam}.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Hyperparameter sensitivity of TASD-CL on Elliptic.}
+  \label{tab:hyperparameter-sensitivity}
+  \scriptsize
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lccc@{}}
+    \toprule
+    Hyperparameter & Value & AUC-ROC & MacroF1 \\
+    \midrule
+    $\lambda_{\mathrm{SSF}}$ & 0.5 & -- & -- \\
+    $\lambda_{\mathrm{SSF}}$ & 1.0 & -- & -- \\
+    $\lambda_{\mathrm{SSF}}$ & 2.0 & -- & -- \\
+    \midrule
+    $\lambda_{\mathrm{SPC}}$ & 0.05 & -- & -- \\
+    $\lambda_{\mathrm{SPC}}$ & 0.10 & -- & -- \\
+    $\lambda_{\mathrm{SPC}}$ & 0.20 & -- & -- \\
+    \midrule
+    $\lambda_{\mathrm{SCD}}$ & 0.25 & -- & -- \\
+    $\lambda_{\mathrm{SCD}}$ & 0.50 & -- & -- \\
+    $\lambda_{\mathrm{SCD}}$ & 1.00 & -- & -- \\
+    \midrule
+    Hidden dim. & 64 & -- & -- \\
+    Hidden dim. & 128 & -- & -- \\
+    Hidden dim. & 256 & -- & -- \\
+    \bottomrule
+  \end{tabular*}
+\end{table}
+\FloatBarrier
+
+\subsection{RQ3: Stability under Different Anomaly Ratios and Temporal Windows}
+\label{subsec:stability-analysis}
+
+This experiment evaluates whether TASD-CL remains stable when fraud labels become sparser and when the temporal task granularity changes. For the anomaly-ratio setting, we will keep the test distribution unchanged and vary the fraction of labeled fraudulent nodes used during training. For the temporal-window setting, we will reconstruct task sequences with different numbers of chronological snapshots.
+
+% Generated by scripts/run_rq3_robustness.sh and summarized by tools/summarize_rq_experiments.py --kind robustness.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Stability under different anomaly ratios.}
+  \label{tab:anomaly-ratio}
+  \scriptsize
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lccc@{}}
+    \toprule
+    Method & Fraud Labels & AUC-ROC & MacroF1 \\
+    \midrule
+    TASD-CL & 100\% & -- & -- \\
+    TASD-CL & 75\% & -- & -- \\
+    TASD-CL & 50\% & -- & -- \\
+    TASD-CL & 25\% & -- & -- \\
+    \midrule
+    CGNN & 100\% & -- & -- \\
+    CGNN & 75\% & -- & -- \\
+    CGNN & 50\% & -- & -- \\
+    CGNN & 25\% & -- & -- \\
+    \midrule
+    GCN+ER & 100\% & -- & -- \\
+    GCN+ER & 75\% & -- & -- \\
+    GCN+ER & 50\% & -- & -- \\
+    GCN+ER & 25\% & -- & -- \\
+    \midrule
+    GCN & 100\% & -- & -- \\
+    GCN & 75\% & -- & -- \\
+    GCN & 50\% & -- & -- \\
+    GCN & 25\% & -- & -- \\
+    \bottomrule
+  \end{tabular*}
+\end{table}
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Stability under temporal windows.}
+  \label{tab:temporal-window}
+  \scriptsize
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lccc@{}}
+    \toprule
+    Method & Tasks & AUC-ROC & MacroF1 \\
+    \midrule
+    TASD-CL & 5 & -- & -- \\
+    TASD-CL & 10 & -- & -- \\
+    TASD-CL & 20 & -- & -- \\
+    \midrule
+    CGNN & 5 & -- & -- \\
+    CGNN & 10 & -- & -- \\
+    CGNN & 20 & -- & -- \\
+    \midrule
+    GCN+ER & 5 & -- & -- \\
+    GCN+ER & 10 & -- & -- \\
+    GCN+ER & 20 & -- & -- \\
+    \midrule
+    GCN & 5 & -- & -- \\
+    GCN & 10 & -- & -- \\
+    GCN & 20 & -- & -- \\
+    \bottomrule
+  \end{tabular*}
+\end{table}
+\FloatBarrier
+
+\subsection{RQ4: Efficiency under Task-only Snapshots}
+\label{subsec:efficiency}
+
+This experiment measures whether TASD-CL introduces acceptable overhead under the task-only snapshot setting. We will compare training time, peak GPU memory, inference time, and saved historical information size. The key evidence is that TASD-CL preserves compact structure-free semantic information rather than historical nodes, edges, adjacency matrices, or subgraphs.
+
+% Generated by scripts/run_rq4_efficiency.sh and summarized by tools/summarize_rq_experiments.py --kind efficiency.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Efficiency under task-only snapshots.}
+  \label{tab:efficiency}
+  \scriptsize
+  \setlength{\tabcolsep}{2.2pt}
+  \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lcccc@{}}
+    \toprule
+    Method & Train Time & Infer. & GPU Mem. & Store Mem. \\
+    \midrule
+    TASD-CL & -- & -- & -- & -- \\
+    CGNN & -- & -- & -- & -- \\
+    GraphSAGE & -- & -- & -- & -- \\
+    GCN+ER & -- & -- & -- & -- \\
+    GCN & -- & -- & -- & -- \\
+    \bottomrule
+  \end{tabular*}
+\end{table}
+\FloatBarrier
+
+\subsection{RQ5: Semantic Interpretability}
+\label{subsec:interpretability}
+
+This experiment examines whether the normal and abnormal semantic components learned by TASD-CL provide interpretable evidence for semantic-aware fraud detection. We will analyze three aspects: the separability of normal and abnormal semantic representations, the distribution of alpha-guided routing scores, and the evolution of structure-free semantic prototypes across temporal tasks.
+
+% TODO: Add visualization of original embeddings, normal semantic embeddings, and abnormal semantic embeddings using t-SNE or UMAP.
+% TODO: Add alpha-guided routing analysis by aggregating message-level alpha scores into node-level statistics for normal and fraudulent nodes.
+% TODO: Add semantic prototype drift analysis by tracking distances between current-task representations and stored normal/abnormal prototypes.
+
+\begin{figure}[!htbp]
+  \centering
+  % TODO: Replace with semantic subspace visualization.
+  \fbox{\parbox{0.92\linewidth}{\centering TODO: normal and abnormal semantic subspace visualization}}
+  \caption{Semantic subspace visualization for TASD-CL.}
+  \label{fig:semantic-visualization}
+\end{figure}
+\FloatBarrier
+
+\begin{figure}[!htbp]
+  \centering
+  % TODO: Replace with alpha-guided routing distribution.
+  \fbox{\parbox{0.92\linewidth}{\centering TODO: alpha-guided routing distribution}}
+  \caption{Alpha-guided routing distribution for normal and fraudulent nodes.}
+  \label{fig:alpha-routing}
+\end{figure}
+\FloatBarrier

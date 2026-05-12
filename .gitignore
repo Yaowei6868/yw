@@ -1,33 +1,46 @@
-# ── 数据集（体积大，不入库）──────────────────────────────────────
+# Data
 data/
 datasets/
 
-# ── 模型权重文件（体积大，不入库）────────────────────────────────
-# 只忽略 .pt/.pth 权重文件本身，放行目录结构和 CSV 结果
+# Experiment outputs
+logs/
+runs/
+weights/
+checkpoints/
+paper_results/
+results_summary.csv
+
+# Model artifacts
 *.pt
 *.pth
-checkpoints/
+*.ckpt
 
-# weights/ 目录: 忽略权重文件，但放行 metrics/ 下的 CSV
-weights/**/*.pt
-weights/**/*.pth
-
-# ── Python 编译缓存（忽略）───────────────────────────────────────
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# ── 虚拟环境 & IDE（忽略）────────────────────────────────────────
+# Local environments and dependency caches
+.venv/
 venv/
+env/
 .env
+.tmp_pip/
+.vendor_python/
+
+# IDE and OS files
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
 
-# ── TensorBoard 事件文件（体积大，不入库）────────────────────────
-runs/
-
-# ── 其他杂项（忽略）──────────────────────────────────────────────
+# Local agent/tooling state
 .claude/
-结果表.et
+
+# Misc local reports
 project_structure.txt
-results_summary.csv
+nohup.out

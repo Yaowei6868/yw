@@ -123,11 +123,18 @@ class GIN(nn.Module):
 class GraphSAGE(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.config = config
+        self.input_dim = config.input_dim
+        self.hidden_dim = config.hidden_dim
+        self.output_dim = config.output_dim
+        self.dropout = config.dropout
         self.conv1 = SAGEConv(config.input_dim, config.hidden_dim)
         self.conv2 = SAGEConv(config.hidden_dim, config.output_dim)
     
     def forward(self, data):
-        x = F.relu(self.conv1(data.x, data.edge_index))
+        x = self.conv1(data.x, data.edge_index)
+        x = F.relu(x)
+        x = F.dropout(x, p=self.dropout, training=self.training)
         return self.conv2(x, data.edge_index)
 
 # 在 fraud_detection/models.py 中添加以下代码

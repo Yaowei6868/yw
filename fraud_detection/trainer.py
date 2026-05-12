@@ -23,7 +23,7 @@ from torch_geometric.utils import to_dense_adj, subgraph
 
 # 引入所有模型
 from .models import (
-    GCN, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD
+    GCN, GraphSAGE, HOGRL, CGNN, GradGNN, BSL, PMPModel, ConsisGAD
 )
 from .datasets import EllipticDataset, EllipticPlusActorDataset, DGraphFinDataset
 from .buffer import ReplayBuffer, SubspacePrototypeBuffer
@@ -77,8 +77,8 @@ BSL_PARAM_GROUPS = {
     'classifier':   0.3,   # 最终分类器 (最低): 任务特定层
 }
 
-# CGNN parameter groups for SSF role multipliers.
-CGNN_PARAM_GROUPS = {
+# TASD-CL semantic parameter groups for SSF role multipliers.
+TASD_PARAM_GROUPS = {
     'conv.att_vec':      3.0,
     'conv.att_lin':      2.5,
     'conv.gate_lin':     2.5,
@@ -91,16 +91,21 @@ CGNN_PARAM_GROUPS = {
 # 模型映射表
 models_map = {
     "gcn": GCN,
+    "graphsage": GraphSAGE,
     "hogrl": HOGRL,
     "cgnn": CGNN,
+    "tasdcl": CGNN,
     "grad": GradGNN,
     "bsl": BSL,
     "pmp": PMPModel,
     "consisgad": ConsisGAD,
 }
 
+TASD_MODEL_KEYS = ("tasdcl", "cgnn")
+
 datasets_map = {
     "elliptic": EllipticDataset,
+    "actor": EllipticPlusActorDataset,
     "elliptic_actor": EllipticPlusActorDataset,
     "dgraphfin": DGraphFinDataset,
 }
@@ -112,7 +117,7 @@ class Trainer:
         self.config = config
         self.device = torch.device(config.train.device if torch.cuda.is_available() else "cpu")
         
-        if self.config.train.dataset == 'elliptic_actor':
+        if self.config.train.dataset in ('actor', 'elliptic_actor'):
             self.dataset_obj = EllipticPlusActorDataset(root='data/elliptic++actor')
             self.dataset = self.dataset_obj[0]
         elif self.config.train.dataset == 'dgraphfin':
@@ -155,8 +160,8 @@ class Trainer:
         if self.config.train.model == 'bsl':
             sub_dim = config.model.hidden_dim // 3
             self.spc_buffer = SubspacePrototypeBuffer(sub_dim=sub_dim, n_subspaces=3)
-        elif self.config.train.model == 'cgnn':
-            # CGNN: 2 子空间 (x_nor, x_abnor)，每个维度 = hidden_dim
+        elif self.config.train.model in TASD_MODEL_KEYS:
+            # TASD-CL: 2 子空间 (x_nor, x_abnor)，每个维度 = hidden_dim
             sub_dim = config.model.hidden_dim
             self.spc_buffer = SubspacePrototypeBuffer(sub_dim=sub_dim, n_subspaces=2)
         self.spc_lambda = config.train.get('spc_lambda', 0.0)
@@ -251,8 +256,8 @@ class Trainer:
                  (1 - prob_t) * (torch.log(1 - prob_t) - torch.log(1 - prob_s))
         return kl_div.mean()
 
-    # CGNN 专用损失函数
-    def _cgnn_loss(self, x_nor, x_abnor, y, train_idx):
+    # Legacy two-subspace semantic loss kept for older experiments.
+    def _semantic_pair_loss(self, x_nor, x_abnor, y, train_idx):
         # [省略无关更改的代码，保持与你原版完全一致...]
         x_nor_train = x_nor[train_idx]
         x_abnor_train = x_abnor[train_idx]
@@ -271,9 +276,9 @@ class Trainer:
         
         return loss_csd, loss_consis
 
-    def _cgnn_semantic_loss(self, x_nor, x_abnor, y, train_idx, node_gate=None):
+    def _semantic_decomposition_loss(self, x_nor, x_abnor, y, train_idx, node_gate=None):
         """
-        Semantic regularization for the adapted CGNN backbone.
+        Semantic regularization for TASD-CL.
         Keeps the two subspaces decoupled, aligns their dominance with node labels,
         and prevents the learned gate from collapsing to a single branch.
         """
@@ -383,6 +388,59 @@ class Trainer:
 
         return torch.tensor(task_train_idx, dtype=torch.long).to(self.device), \
                torch.tensor(task_valid_idx, dtype=torch.long).to(self.device)
+
+    def _apply_train_fraud_ratio(self, task_train_idx: torch.Tensor, task_id: int) -> torch.Tensor:
+        """Subsample positive training labels for anomaly-ratio robustness experiments."""
+        ratio = float(self.config.train.get(
+            'train_fraud_ratio',
+            self.config.train.get('fraud_train_ratio', 1.0)
+        ))
+        if ratio >= 1.0:
+            return task_train_idx
+        if ratio <= 0.0:
+            raise ValueError("train_fraud_ratio must be in (0, 1].")
+
+        labels = self.dataset.y[task_train_idx.cpu()].to(self.device)
+        pos_idx = task_train_idx[labels == 1]
+        neg_idx = task_train_idx[labels == 0]
+        if pos_idx.numel() <= 1:
+            return task_train_idx
+
+        keep_pos = max(1, int(round(pos_idx.numel() * ratio)))
+        rng = np.random.default_rng(int(self.config.train.get('seed', 42)) + task_id)
+        keep_order = rng.choice(pos_idx.numel(), size=keep_pos, replace=False)
+        keep_pos_idx = pos_idx[torch.tensor(keep_order, dtype=torch.long, device=self.device)]
+        sampled = torch.cat([neg_idx, keep_pos_idx])
+        sampled = sampled[torch.randperm(sampled.numel(), device=self.device)]
+        print(
+            f"[ROBUST] train_fraud_ratio={ratio:.2f}: "
+            f"fraud {pos_idx.numel()} -> {keep_pos_idx.numel()}, "
+            f"normal kept {neg_idx.numel()}"
+        )
+        return sampled
+
+    def _estimate_model_param_mb(self) -> float:
+        return sum(
+            p.numel() * p.element_size() for p in self.model.parameters()
+        ) / (1024 ** 2)
+
+    def _estimate_stored_memory_mb(self) -> float:
+        total_bytes = 0
+        if self.replay_buffer is not None:
+            total_indices = sum(len(v) for v in self.replay_buffer.buffer.values())
+            total_bytes += total_indices * 8
+        if self.spc_buffer is not None:
+            for task_protos in self.spc_buffer.prototypes.values():
+                for cls_protos in task_protos.values():
+                    for mu, sigma in cls_protos.values():
+                        total_bytes += mu.numel() * mu.element_size()
+                        total_bytes += sigma.numel() * sigma.element_size()
+        return total_bytes / (1024 ** 2)
+
+    def _get_peak_gpu_memory_mb(self) -> float:
+        if self.device.type != "cuda":
+            return 0.0
+        return torch.cuda.max_memory_allocated(self.device) / (1024 ** 2)
 
     def _precompute_high_order_graphs(self, edge_index, num_nodes, order=3):
         print(f"Pre-computing HOGRL graphs up to order {order} (Force COO)...")
@@ -565,10 +623,10 @@ class Trainer:
         [TASD-CL] Component A: Subspace-Stratified Fisher (SSF)
         根据模型参数的语义角色返回 λ 乘数。
         BSL: 子空间路由参数 (att_vec/att_bias) 获最高约束
-        CGNN: 去噪注意力路由参数 (conv.att_vec/conv.att_lin) 获最高约束
+        TASD-CL: 语义路由参数 (conv.att_vec/conv.att_lin) 获最高约束
         """
-        if self.config.train.model == 'cgnn':
-            for pattern, multiplier in CGNN_PARAM_GROUPS.items():
+        if self.config.train.model in TASD_MODEL_KEYS:
+            for pattern, multiplier in TASD_PARAM_GROUPS.items():
                 if pattern in param_name:
                     return multiplier
             return 1.0
@@ -590,7 +648,7 @@ class Trainer:
         [TASD-CL] Component C: Subspace-Conditioned Distillation (SCD)
 
         BSL 模式：在 BSL 三子空间上置信度过滤蒸馏，Z_aa 权重 2.0。
-        CGNN 模式：在 x_nor / x_abnor 两子空间上置信度过滤蒸馏，x_abnor 权重 2.0。
+        TASD-CL 模式：在 x_nor / x_abnor 两子空间上置信度过滤蒸馏，x_abnor 权重 2.0。
                    置信度由 per-node alpha 决定：alpha<tau → 异常节点（高置信欺诈）。
         """
         if self.old_model is None:
@@ -617,8 +675,8 @@ class Trainer:
                 )
             return loss_scd
 
-        # ── CGNN 模式 ────────────────────────────────────────────────────────
-        elif self.config.train.model == 'cgnn':
+        # ── TASD-CL 模式 ─────────────────────────────────────────────────────
+        elif self.config.train.model in TASD_MODEL_KEYS:
             with torch.no_grad():
                 _, old_x_nor, old_x_abnor, old_node_alpha = self.old_model(
                     snapshot_data, return_decomposed=True, return_node_alpha=True
@@ -652,7 +710,7 @@ class Trainer:
         """
         [TASD-CL] Component B: Subspace Prototype Condensation (SPC) 更新
         BSL: 提取三子空间 (Z_na, Z_aa, Z_nn) 类原型
-        CGNN: 提取两子空间 (x_nor, x_abnor) 类原型
+        TASD-CL: 提取两子空间 (x_nor, x_abnor) 类原型
         存储 Gaussian 原型 (μ, σ)，实现图结构无关的回放。
         """
         if self.spc_buffer is None or self.spc_lambda <= 0.0:
@@ -675,7 +733,7 @@ class Trainer:
                 z_train = z_all[task_train_idx]
                 z_parts_train = list(self.model.get_sub_features(z_train))
 
-            elif self.config.train.model == 'cgnn':
+            elif self.config.train.model in TASD_MODEL_KEYS:
                 _, x_nor, x_abnor = self.model(snapshot_data, return_decomposed=True)
                 # 两子空间，各 [N, hidden_dim]
                 z_parts_train = [x_nor[task_train_idx], x_abnor[task_train_idx]]
@@ -700,6 +758,7 @@ class Trainer:
             "auc_roc": [], "auc_pr": [],
             "g_mean": [], "specificity": [], "mcc": [],
         }
+        inference_times_ms = []
 
         for t_id in range(current_task_id + 1):
             if t_id not in self.task_valid_indices_map:
@@ -723,8 +782,12 @@ class Trainer:
                     snapshot_data.adjs = self._precompute_high_order_graphs(
                         snapshot_data.edge_index, self.dataset.num_nodes, order=order
                     )
+
+                if self.device.type == "cuda":
+                    torch.cuda.synchronize(self.device)
+                infer_start = time.time()
                 
-                if self.config.train.model == 'cgnn':
+                if self.config.train.model in TASD_MODEL_KEYS:
                     outputs, _, _ = self.model(snapshot_data, return_decomposed=True)
                 elif self.config.train.model == 'bsl':
                     outputs, _, _ = self.model(snapshot_data, return_stats=True)
@@ -736,6 +799,10 @@ class Trainer:
                     out_res = self.model(snapshot_data)
                     if isinstance(out_res, tuple): outputs = out_res[0] 
                     else: outputs = out_res
+
+                if self.device.type == "cuda":
+                    torch.cuda.synchronize(self.device)
+                inference_times_ms.append((time.time() - infer_start) * 1000.0)
                 
                 outputs = outputs.reshape((self.dataset.x.shape[0]))
                 probs = torch.sigmoid(outputs).detach().cpu().numpy()
@@ -775,6 +842,7 @@ class Trainer:
         result_entry = {
             "task_id": current_task_id + 1,
             "time_cost": task_duration,
+            "avg_inference_time_ms": float(np.mean(inference_times_ms)) if inference_times_ms else 0.0,
             **{f"avg_{k}": v for k, v in avg_metrics.items()}
         }
         return result_entry
@@ -792,6 +860,7 @@ class Trainer:
             if task_train_idx is None:
                 print("Skipping task: No labeled data.")
                 continue
+            task_train_idx = self._apply_train_fraud_ratio(task_train_idx, task_id)
             
             self.task_valid_indices_map[task_id] = task_valid_idx.cpu().numpy()
             
@@ -822,6 +891,8 @@ class Trainer:
             snapshot_data.edge_index = self.dataset.edge_index[:, edge_mask]
             snapshot_data = snapshot_data.to(self.device) 
             print(f"[INFO] Snapshot nodes: {valid_node_mask.sum().item()} (current task only)")
+            if self.device.type == "cuda":
+                torch.cuda.reset_peak_memory_stats(self.device)
 
             is_ewc_mode = self.ewc_lambda > 0.0
             is_lwf_mode = self.lwf_alpha > 0.0
@@ -844,7 +915,7 @@ class Trainer:
                 self.model.train()
                 self.optimizer.zero_grad()
                 
-                replay_idx = self.replay_buffer.get_buffer_indices().to(self.config.train.device)
+                replay_idx = self.replay_buffer.get_buffer_indices().to(self.device)
                 current_train_idx = torch.cat([task_train_idx, replay_idx])
                 
                 if self.config.train.model == 'grad':
@@ -970,7 +1041,7 @@ class Trainer:
 
                     z_all = None; alpha_all = None
 
-                    if self.config.train.model == 'cgnn':
+                    if self.config.train.model in TASD_MODEL_KEYS:
                         outputs, x_nor, x_abnor = self.model(snapshot_data, return_decomposed=True)
                     elif self.config.train.model == 'bsl':
                          outputs, z_all, alpha_all = self.model(snapshot_data, return_stats=True)
@@ -984,20 +1055,29 @@ class Trainer:
 
                     task_loss = self.criterion(outputs[current_train_idx].reshape(-1, 1), task_y)
 
-                    bsl_loss, cl_loss, cgnn_loss = 0.0, 0.0, 0.0
+                    bsl_loss, cl_loss, semantic_loss = 0.0, 0.0, 0.0
                     spc_loss = torch.tensor(0.0, device=self.device)  # [TASD-CL]
 
-                    if self.config.train.model == 'cgnn':
-                        w_csd = self.config.train.get('cgnn_lambda', 0.1)
-                        w_consist = self.config.train.get('cgnn_beta', 0.1)
-                        w_gate = self.config.train.get('cgnn_gate_lambda', 0.05)
+                    if self.config.train.model in TASD_MODEL_KEYS:
+                        w_decouple = self.config.train.get(
+                            'semantic_decouple_lambda',
+                            self.config.train.get('cgnn_lambda', 0.1)
+                        )
+                        w_role = self.config.train.get(
+                            'semantic_role_lambda',
+                            self.config.train.get('cgnn_beta', 0.1)
+                        )
+                        w_gate = self.config.train.get(
+                            'semantic_gate_lambda',
+                            self.config.train.get('cgnn_gate_lambda', 0.05)
+                        )
                         node_gate = self.model.get_node_gate()
-                        l_csd, l_consist, l_gate = self._cgnn_semantic_loss(
+                        l_decouple, l_role, l_gate = self._semantic_decomposition_loss(
                             x_nor, x_abnor, self.dataset.y.to(self.device), current_train_idx, node_gate=node_gate
                         )
-                        cgnn_loss = w_csd * l_csd + w_consist * l_consist + w_gate * l_gate
+                        semantic_loss = w_decouple * l_decouple + w_role * l_role + w_gate * l_gate
 
-                        # [TASD-CL / CGNN] Component B: SPC 子空间原型回放
+                        # [TASD-CL] Component B: SPC 子空间原型回放
                         if self.spc_lambda > 0 and self.spc_buffer is not None \
                                 and self.spc_buffer.has_prototypes():
                             n_per_cls = self.config.train.get('spc_n_samples', 32)
@@ -1047,12 +1127,12 @@ class Trainer:
 
                     # [TASD-CL] Component C: SCD 置信度过滤子空间蒸馏
                     # BSL: 在三子空间层面蒸馏，Z_aa 权重 2.0
-                    # CGNN: 在 x_nor/x_abnor 层面蒸馏，x_abnor 权重 2.0
+                    # TASD-CL: 在 x_nor/x_abnor 层面蒸馏，x_abnor 权重 2.0
                     if self.scd_lambda > 0 and task_id > 0 and self.old_model is not None:
                         if self.config.train.model == 'bsl' and z_all is not None:
                             loss_scd = self._compute_scd_loss(snapshot_data, new_z=z_all, new_alpha=alpha_all)
                             cl_loss = cl_loss + self.scd_lambda * loss_scd
-                        elif self.config.train.model == 'cgnn':
+                        elif self.config.train.model in TASD_MODEL_KEYS:
                             loss_scd = self._compute_scd_loss(
                                 snapshot_data, new_x_nor=x_nor, new_x_abnor=x_abnor
                             )
@@ -1062,16 +1142,16 @@ class Trainer:
                         ewc_term = 0.0
                         for name, param in self.model.named_parameters():
                             if name in self.ewc_fisher:
-                                # [TASD-CL] Component A: SSF — BSL 和 CGNN 均使用语义角色乘数
+                                # [TASD-CL] Component A: SSF uses semantic role multipliers.
                                 role_mult = self._get_ssf_lambda(name) \
-                                    if self.config.train.model in ('bsl', 'cgnn') else 1.0
+                                    if self.config.train.model in ('bsl',) + TASD_MODEL_KEYS else 1.0
                                 ewc_term += role_mult * (
                                     self.ewc_fisher[name].to(param.device) *
                                     (param - self.ewc_params[name].to(param.device)).pow(2)
                                 ).sum()
                         cl_loss += self.ewc_lambda * ewc_term
 
-                    total_loss = task_loss + cl_loss + bsl_loss + cgnn_loss \
+                    total_loss = task_loss + cl_loss + bsl_loss + semantic_loss \
                                  + self.spc_lambda * spc_loss
                 
                     total_loss.backward()
@@ -1081,19 +1161,19 @@ class Trainer:
 
             # [TASD-CL] SSF warm-up 跳过：Task 0 的 θ* 来自极少欺诈样本的坏模型，
             # 把它作为 EWC 锚点会在 Task 1 约束训练方向，必须跳过。
-            # 对 BSL 和 CGNN 的 TASD-CL 均生效（spc_lambda>0 or scd_lambda>0），不影响通用 EWC 基线。
-            _is_tasdcl_mode = (self.config.train.model in ('bsl', 'cgnn') and
+            # 对 TASD-CL 语义模式生效（spc_lambda>0 or scd_lambda>0），不影响通用 EWC 基线。
+            _is_tasdcl_mode = (self.config.train.model in ('bsl',) + TASD_MODEL_KEYS and
                                (self.spc_lambda > 0 or self.scd_lambda > 0))
             if is_ewc_mode and not (_is_tasdcl_mode and task_id == 0):
                 self._update_ewc_metrics(task_train_idx, snapshot_data)
             if is_lwf_mode:
-                if self.config.train.model == 'cgnn':
+                if self.config.train.model in TASD_MODEL_KEYS:
                     self.model.conv._cached_x_nor = None
                     self.model.conv._cached_x_abnor = None
                     self.model.conv._cached_gate = None
                     self.model.conv._cached_node_alpha = None
                 self.old_model = copy.deepcopy(self.model)
-                self.old_model.to(self.config.train.device)
+                self.old_model.to(self.device)
             if is_replay_mode:
                 idx_cpu = task_train_idx.cpu()
                 task_train_labels = self.dataset.y[idx_cpu].cpu().numpy()
@@ -1102,29 +1182,35 @@ class Trainer:
             # [TASD-CL] Component B: 任务结束后更新 SPC 子空间原型库
             # 跳过 Task 0 (warm-up)：欺诈样本极少，原型质量差，会污染后续任务
             if self.spc_lambda > 0 and task_id > 0 and self.spc_buffer is not None:
-                if self.config.train.model in ('bsl', 'cgnn'):
+                if self.config.train.model in ('bsl',) + TASD_MODEL_KEYS:
                     self._update_spc_prototypes(task_id, snapshot_data, task_train_idx)
 
             # [TASD-CL] Component C: SCD 需要旧模型快照作为教师
             # 注意：TASD-CL 禁用了 LwF (lwf_alpha=0)，因此需要在此独立保存 old_model
             # 跳过 Task 0 (warm-up)：warm-up 模型质量差，蒸馏会误导后续任务
-            if self.scd_lambda > 0 and self.config.train.model in ('bsl', 'cgnn') \
+            if self.scd_lambda > 0 and self.config.train.model in ('bsl',) + TASD_MODEL_KEYS \
                     and not is_lwf_mode and task_id > 0:
-                if self.config.train.model == 'cgnn':
+                if self.config.train.model in TASD_MODEL_KEYS:
                     self.model.conv._cached_x_nor = None
                     self.model.conv._cached_x_abnor = None
                     self.model.conv._cached_gate = None
                     self.model.conv._cached_node_alpha = None
                 self.old_model = copy.deepcopy(self.model)
-                self.old_model.to(self.config.train.device)
+                self.old_model.to(self.device)
                 self.old_model.eval()
 
             task_duration = time.time() - task_start_time
+            peak_gpu_memory_mb = self._get_peak_gpu_memory_mb()
+            model_param_mb = self._estimate_model_param_mb()
+            stored_memory_mb = self._estimate_stored_memory_mb()
             
             del task_train_idx, task_valid_idx, snapshot_data 
             gc.collect(); torch.cuda.empty_cache()
 
             metrics_entry = self.evaluate_cl_metrics(task_id, task_duration)
+            metrics_entry["peak_gpu_memory_mb"] = peak_gpu_memory_mb
+            metrics_entry["model_param_mb"] = model_param_mb
+            metrics_entry["stored_memory_mb"] = stored_memory_mb
             metrics_entry["cl_mode"] = "EWC" if is_ewc_mode else ("LwF" if is_lwf_mode else ("Replay" if is_replay_mode else "Naive"))
             # Task 1 标记为 warm-up：欺诈样本极少，指标不可靠，论文分析时排除
             metrics_entry["is_warmup"] = (task_id == 0)
