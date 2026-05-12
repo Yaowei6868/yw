@@ -2,8 +2,8 @@
 # RQ3 robustness experiments on Elliptic.
 #
 # Covers:
-#   1) anomaly-ratio robustness: train_fraud_ratio in {0.75, 0.50, 0.25}
-#   2) temporal-window robustness: 5-task and 20-task chronological schedules
+#   1) anomaly-ratio robustness: train_fraud_ratio in {1.00, 0.75, 0.50, 0.25}
+#   2) temporal-window robustness: 5-task, 10-task, and 20-task schedules
 #
 # Usage:
 #   bash scripts/run_rq3_robustness.sh
@@ -68,7 +68,7 @@ run_experiment() {
 }
 
 echo "============================================================"
-echo " RQ3 robustness: anomaly ratio and temporal windows"
+echo " RQ3 robustness: anomaly ratios and temporal windows"
 printf " %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo "============================================================"
 

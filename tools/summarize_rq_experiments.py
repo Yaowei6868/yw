@@ -64,6 +64,33 @@ def annotate_efficiency_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def annotate_robustness_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Add table labels for anomaly-ratio and temporal-window robustness."""
+    if df.empty or "exp_name" not in df.columns:
+        return df
+
+    def group_name(exp_name: str) -> str:
+        if "_robust_ratio" in exp_name:
+            return "anomaly_ratio"
+        if "_robust_window" in exp_name:
+            return "temporal_window"
+        return "unknown"
+
+    def setting_name(exp_name: str) -> str:
+        if "_robust_ratio" in exp_name:
+            token = exp_name.split("_robust_ratio", 1)[1].split("_", 1)[0]
+            return f"{int(token):d}%"
+        if "_robust_window" in exp_name:
+            token = exp_name.split("_robust_window", 1)[1].split("_", 1)[0]
+            return f"{int(token):d} tasks"
+        return ""
+
+    df = df.copy()
+    df["robustness_group"] = df["exp_name"].map(group_name)
+    df["robustness_setting"] = df["exp_name"].map(setting_name)
+    return df
+
+
 def summarize(kind: str, out_dir: Path) -> None:
     root = ROOTS[kind]
     if not root.exists():
@@ -77,9 +104,13 @@ def summarize(kind: str, out_dir: Path) -> None:
 
     if kind == "efficiency":
         df = annotate_efficiency_rows(df)
+    elif kind == "robustness":
+        df = annotate_robustness_rows(df)
 
     metric_cols = [
         "exp_name",
+        "robustness_group",
+        "robustness_setting",
         "efficiency_group",
         "protocol",
         "task_id",
