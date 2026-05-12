@@ -39,6 +39,31 @@ def load_final_rows(root: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def annotate_efficiency_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Add table/protocol labels for the two RQ4 efficiency designs."""
+    if df.empty or "exp_name" not in df.columns:
+        return df
+
+    def group_name(exp_name: str) -> str:
+        if exp_name.startswith("elliptic_system_"):
+            return "system_level"
+        if exp_name.startswith("elliptic_taskonly_"):
+            return "task_only_overhead"
+        return "legacy_task_only"
+
+    def protocol_name(exp_name: str) -> str:
+        if "_system_full_" in exp_name:
+            return "cumulative_full_graph"
+        if "_system_taskonly_" in exp_name or exp_name.startswith("elliptic_taskonly_"):
+            return "task_only_snapshot"
+        return "task_only_snapshot"
+
+    df = df.copy()
+    df["efficiency_group"] = df["exp_name"].map(group_name)
+    df["protocol"] = df["exp_name"].map(protocol_name)
+    return df
+
+
 def summarize(kind: str, out_dir: Path) -> None:
     root = ROOTS[kind]
     if not root.exists():
@@ -50,8 +75,13 @@ def summarize(kind: str, out_dir: Path) -> None:
         print(f"[INFO] no completed CSV files under {root}")
         return
 
+    if kind == "efficiency":
+        df = annotate_efficiency_rows(df)
+
     metric_cols = [
         "exp_name",
+        "efficiency_group",
+        "protocol",
         "task_id",
         "avg_auc_roc",
         "avg_macro_f1",

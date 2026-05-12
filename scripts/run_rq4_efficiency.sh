@@ -2,6 +2,10 @@
 # RQ4 efficiency experiments. The Trainer writes time, GPU memory, model size,
 # stored memory, and inference-time columns into each aggregate CSV.
 #
+# This script runs two efficiency groups:
+#   1) system_level: cumulative/full-graph baselines vs task-only TASD-CL.
+#   2) task_only_overhead: all methods under the same task-only snapshots.
+#
 # Usage:
 #   bash scripts/run_rq4_efficiency.sh
 #   FORCE_RERUN=1 nohup bash scripts/run_rq4_efficiency.sh > logs/rq4_efficiency.log 2>&1 &
@@ -65,15 +69,25 @@ run_efficiency() {
 }
 
 echo "============================================================"
-echo " RQ4 efficiency under task-only snapshots"
+echo " RQ4 efficiency experiments"
 printf " %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
 echo "============================================================"
 
-run_efficiency "configs/elliptic/efficiency/elliptic_efficiency_GCN.yaml"
-run_efficiency "configs/elliptic/efficiency/elliptic_efficiency_GraphSAGE.yaml"
-run_efficiency "configs/elliptic/efficiency/elliptic_efficiency_CGNN.yaml"
-run_efficiency "configs/elliptic/efficiency/elliptic_efficiency_ER_GCN.yaml"
-run_efficiency "configs/elliptic/efficiency/elliptic_efficiency_TASDCL.yaml"
+echo ""
+echo "------------------------------------------------------------"
+echo " Table A: system-level deployment protocols"
+echo "------------------------------------------------------------"
+for config in "${ROOT_DIR}"/configs/elliptic/efficiency/system_level/*.yaml; do
+    run_efficiency "${config#${ROOT_DIR}/}"
+done
+
+echo ""
+echo "------------------------------------------------------------"
+echo " Table B: task-only model overhead"
+echo "------------------------------------------------------------"
+for config in "${ROOT_DIR}"/configs/elliptic/efficiency/task_only_overhead/*.yaml; do
+    run_efficiency "${config#${ROOT_DIR}/}"
+done
 
 TOTAL_END=$(date +%s)
 TOTAL_ELAPSED=$((TOTAL_END - TOTAL_START))

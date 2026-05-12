@@ -1,0 +1,40 @@
+name: elliptic_system_full_BSL
+
+dataset:
+  features_path: "data/elliptic/elliptic_txs_features.csv"
+  edges_path: "data/elliptic/elliptic_txs_edgelist.csv"
+  classes: "data/elliptic/elliptic_txs_classes.csv"
+
+model:
+  input_dim: ???
+  hidden_dim: 96
+  output_dim: 1
+  dropout: 0.5
+  num_heads: 4
+train:
+  dataset: elliptic
+  model: bsl
+  graph_protocol: cumulative_full_graph
+  device: cuda
+  lr: 0.001
+  weight_decay: 1e-5
+  print_freq: 10
+  save_dir: weights/efficiency/system_level/elliptic_system_full_BSL
+
+  num_epochs_per_task: 100
+  task_schedule:
+    - [1, 5]
+    - [1, 10]
+    - [1, 15]
+    - [1, 20]
+    - [1, 25]
+    - [1, 30]
+    - [1, 35]
+    - [1, 40]
+    - [1, 45]
+    - [1, 49]
+  ewc_lambda: 0.0
+  lwf_alpha: 0.0
+  lwf_temperature: 1.0
+  buffer_size_per_class: 0
+  threshold: 0.5
