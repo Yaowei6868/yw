@@ -1,0 +1,143 @@
+/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:1343: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  current = float(metrics)
+
+--- Training on Task 1 (Timesteps: 1 to 5) ---
+[INFO] Task 1 class weight: 77.72 -> clipped: 20.00
+   -> Focal Loss Alpha: 0.9524
+[INFO] Snapshot nodes: 31541 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
+*** CL Metrics @ Task 1 [WARM-UP, 仅供参考] ***
+  [Binary]  F1: 0.0606 | Precision: 0.0400 | Recall: 0.1250
+  [Macro]   Macro-F1: 0.5261 | Macro-Recall: 0.5561
+  [Ranking] AUC-ROC: 0.8989 | AUC-PR: 0.0322
+  [Balance] G-Mean: 0.3513 | Specificity: 0.9872 | MCC: 0.0638
+
+--- Training on Task 2 (Timesteps: 6 to 10) ---
+[INFO] Task 2 class weight: 7.60 -> clipped: 7.60
+   -> Focal Loss Alpha: 0.8838
+[INFO] Snapshot nodes: 26556 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 2 子空间原型已更新 | 欺诈: 422, 正常: 3209
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
+*** CL Metrics @ Task 2 ***
+  [Binary]  F1: 0.1200 | Precision: 0.0663 | Recall: 0.6875
+  [Macro]   Macro-F1: 0.5286 | Macro-Recall: 0.7854
+  [Ranking] AUC-ROC: 0.9095 | AUC-PR: 0.1949
+  [Balance] G-Mean: 0.7546 | Specificity: 0.8834 | MCC: 0.1894
+
+--- Training on Task 3 (Timesteps: 11 to 15) ---
+[INFO] Task 3 class weight: 4.05 -> clipped: 4.05
+   -> Focal Loss Alpha: 0.8019
+[INFO] Snapshot nodes: 16532 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 3 子空间原型已更新 | 欺诈: 481, 正常: 1947
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
+*** CL Metrics @ Task 3 ***
+  [Binary]  F1: 0.3066 | Precision: 0.2210 | Recall: 0.7735
+  [Macro]   Macro-F1: 0.6059 | Macro-Recall: 0.8044
+  [Ranking] AUC-ROC: 0.9112 | AUC-PR: 0.3684
+  [Balance] G-Mean: 0.7817 | Specificity: 0.8352 | MCC: 0.3228
+
+--- Training on Task 4 (Timesteps: 16 to 20) ---
+[INFO] Task 4 class weight: 5.89 -> clipped: 5.89
+   -> Focal Loss Alpha: 0.8549
+[INFO] Snapshot nodes: 16133 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 4 子空间原型已更新 | 欺诈: 359, 正常: 2116
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
+*** CL Metrics @ Task 4 ***
+  [Binary]  F1: 0.3906 | Precision: 0.2939 | Recall: 0.7955
+  [Macro]   Macro-F1: 0.6316 | Macro-Recall: 0.7944
+  [Ranking] AUC-ROC: 0.8889 | AUC-PR: 0.4087
+  [Balance] G-Mean: 0.7758 | Specificity: 0.7932 | MCC: 0.3620
+
+--- Training on Task 5 (Timesteps: 21 to 25) ---
+[INFO] Task 5 class weight: 9.53 -> clipped: 9.53
+   -> Focal Loss Alpha: 0.9050
+[INFO] Snapshot nodes: 20502 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 5 子空间原型已更新 | 欺诈: 448, 正常: 4269
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
+*** CL Metrics @ Task 5 ***
+  [Binary]  F1: 0.4657 | Precision: 0.3628 | Recall: 0.8279
+  [Macro]   Macro-F1: 0.6741 | Macro-Recall: 0.8178
+  [Ranking] AUC-ROC: 0.9001 | AUC-PR: 0.4681
+  [Balance] G-Mean: 0.8027 | Specificity: 0.8077 | MCC: 0.4332
+
+--- Training on Task 6 (Timesteps: 26 to 30) ---
+[INFO] Task 6 class weight: 3.08 -> clipped: 3.08
+   -> Focal Loss Alpha: 0.7552
+[INFO] Snapshot nodes: 12023 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 6 子空间原型已更新 | 欺诈: 534, 正常: 1647
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
+*** CL Metrics @ Task 6 ***
+  [Binary]  F1: 0.4846 | Precision: 0.3717 | Recall: 0.8486
+  [Macro]   Macro-F1: 0.6810 | Macro-Recall: 0.8232
+  [Ranking] AUC-ROC: 0.8971 | AUC-PR: 0.4632
+  [Balance] G-Mean: 0.8096 | Specificity: 0.7978 | MCC: 0.4496
+
+--- Training on Task 7 (Timesteps: 31 to 35) ---
+[INFO] Task 7 class weight: 4.88 -> clipped: 4.88
+   -> Focal Loss Alpha: 0.8300
+[INFO] Snapshot nodes: 18485 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 7 子空间原型已更新 | 欺诈: 508, 正常: 2481
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
+*** CL Metrics @ Task 7 ***
+  [Binary]  F1: 0.4802 | Precision: 0.3618 | Recall: 0.8577
+  [Macro]   Macro-F1: 0.6730 | Macro-Recall: 0.8186
+  [Ranking] AUC-ROC: 0.8927 | AUC-PR: 0.4559
+  [Balance] G-Mean: 0.8056 | Specificity: 0.7795 | MCC: 0.4433
+
+--- Training on Task 8 (Timesteps: 36 to 40) ---
+[INFO] Task 8 class weight: 14.64 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 19831 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 8 子空间原型已更新 | 欺诈: 265, 正常: 3880
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
+*** CL Metrics @ Task 8 ***
+  [Binary]  F1: 0.4572 | Precision: 0.3399 | Recall: 0.8386
+  [Macro]   Macro-F1: 0.6574 | Macro-Recall: 0.8033
+  [Ranking] AUC-ROC: 0.8758 | AUC-PR: 0.4226
+  [Balance] G-Mean: 0.7920 | Specificity: 0.7680 | MCC: 0.4177
+
+--- Training on Task 9 (Timesteps: 41 to 45) ---
+[INFO] Task 9 class weight: 14.50 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 28118 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 9 子空间原型已更新 | 欺诈: 403, 正常: 5844
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
+*** CL Metrics @ Task 9 ***
+  [Binary]  F1: 0.4082 | Precision: 0.3031 | Recall: 0.8121
+  [Macro]   Macro-F1: 0.6313 | Macro-Recall: 0.7868
+  [Ranking] AUC-ROC: 0.8473 | AUC-PR: 0.3765
+  [Balance] G-Mean: 0.7765 | Specificity: 0.7615 | MCC: 0.3762
+
+--- Training on Task 10 (Timesteps: 46 to 49) ---
+[INFO] Task 10 class weight: 32.82 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 14048 (current task only)
+   [EWC] Updating Fisher Matrix...
+   [SPC] Task 10 子空间原型已更新 | 欺诈: 60, 正常: 1969
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
+*** CL Metrics @ Task 10 ***
+  [Binary]  F1: 0.4143 | Precision: 0.3072 | Recall: 0.8041
+  [Macro]   Macro-F1: 0.6357 | Macro-Recall: 0.7855
+  [Ranking] AUC-ROC: 0.8462 | AUC-PR: 0.3661
+  [Balance] G-Mean: 0.7760 | Specificity: 0.7668 | MCC: 0.3792
+All tasks trained.
+Total time: 34.07s

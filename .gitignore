@@ -3,7 +3,7 @@ data/
 datasets/
 
 # Experiment outputs
-logs/
+
 runs/
 weights/
 checkpoints/
