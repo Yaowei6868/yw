@@ -1,0 +1,125 @@
+/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:1343: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  current = float(metrics)
+
+--- Training on Task 1 (Timesteps: 1 to 5) ---
+[INFO] Task 1 class weight: 77.72 -> clipped: 20.00
+   -> Focal Loss Alpha: 0.9524
+[INFO] Snapshot nodes: 31541 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
+*** CL Metrics @ Task 1 [WARM-UP, 仅供参考] ***
+  [Binary]  F1: 0.0144 | Precision: 0.0073 | Recall: 0.5000
+  [Macro]   Macro-F1: 0.4216 | Macro-Recall: 0.6046
+  [Ranking] AUC-ROC: 0.6935 | AUC-PR: 0.0097
+  [Balance] G-Mean: 0.5955 | Specificity: 0.7092 | MCC: 0.0299
+
+--- Training on Task 2 (Timesteps: 1 to 10) ---
+[INFO] Task 2 class weight: 40.54 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 58097 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
+*** CL Metrics @ Task 2 ***
+  [Binary]  F1: 0.2634 | Precision: 0.1780 | Recall: 0.7331
+  [Macro]   Macro-F1: 0.5400 | Macro-Recall: 0.7130
+  [Ranking] AUC-ROC: 0.7905 | AUC-PR: 0.2452
+  [Balance] G-Mean: 0.7020 | Specificity: 0.6929 | MCC: 0.2486
+
+--- Training on Task 3 (Timesteps: 1 to 15) ---
+[INFO] Task 3 class weight: 19.37 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 74629 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
+*** CL Metrics @ Task 3 ***
+  [Binary]  F1: 0.3880 | Precision: 0.2882 | Recall: 0.7729
+  [Macro]   Macro-F1: 0.6004 | Macro-Recall: 0.7356
+  [Ranking] AUC-ROC: 0.8137 | AUC-PR: 0.3598
+  [Balance] G-Mean: 0.7272 | Specificity: 0.6984 | MCC: 0.3316
+
+--- Training on Task 4 (Timesteps: 1 to 20) ---
+[INFO] Task 4 class weight: 11.53 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 90762 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
+*** CL Metrics @ Task 4 ***
+  [Binary]  F1: 0.4074 | Precision: 0.3098 | Recall: 0.7334
+  [Macro]   Macro-F1: 0.6138 | Macro-Recall: 0.7268
+  [Ranking] AUC-ROC: 0.8131 | AUC-PR: 0.3617
+  [Balance] G-Mean: 0.7192 | Specificity: 0.7203 | MCC: 0.3327
+
+--- Training on Task 5 (Timesteps: 1 to 25) ---
+[INFO] Task 5 class weight: 9.67 -> clipped: 9.67
+   -> Focal Loss Alpha: 0.9062
+[INFO] Snapshot nodes: 111264 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
+*** CL Metrics @ Task 5 ***
+  [Binary]  F1: 0.3860 | Precision: 0.2999 | Recall: 0.6577
+  [Macro]   Macro-F1: 0.6110 | Macro-Recall: 0.7049
+  [Ranking] AUC-ROC: 0.8127 | AUC-PR: 0.3400
+  [Balance] G-Mean: 0.6872 | Specificity: 0.7521 | MCC: 0.3072
+
+--- Training on Task 6 (Timesteps: 1 to 30) ---
+[INFO] Task 6 class weight: 9.64 -> clipped: 9.64
+   -> Focal Loss Alpha: 0.9060
+[INFO] Snapshot nodes: 123287 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
+*** CL Metrics @ Task 6 ***
+  [Binary]  F1: 0.3481 | Precision: 0.2973 | Recall: 0.5664
+  [Macro]   Macro-F1: 0.5929 | Macro-Recall: 0.6733
+  [Ranking] AUC-ROC: 0.7991 | AUC-PR: 0.3388
+  [Balance] G-Mean: 0.6257 | Specificity: 0.7802 | MCC: 0.2636
+
+--- Training on Task 7 (Timesteps: 1 to 35) ---
+[INFO] Task 7 class weight: 8.92 -> clipped: 8.92
+   -> Focal Loss Alpha: 0.8992
+[INFO] Snapshot nodes: 141772 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
+*** CL Metrics @ Task 7 ***
+  [Binary]  F1: 0.3076 | Precision: 0.2740 | Recall: 0.4916
+  [Macro]   Macro-F1: 0.5751 | Macro-Recall: 0.6472
+  [Ranking] AUC-ROC: 0.7739 | AUC-PR: 0.3212
+  [Balance] G-Mean: 0.5649 | Specificity: 0.8028 | MCC: 0.2215
+
+--- Training on Task 8 (Timesteps: 1 to 40) ---
+[INFO] Task 8 class weight: 7.51 -> clipped: 7.51
+   -> Focal Loss Alpha: 0.8824
+[INFO] Snapshot nodes: 161603 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
+*** CL Metrics @ Task 8 ***
+  [Binary]  F1: 0.2721 | Precision: 0.2474 | Recall: 0.4320
+  [Macro]   Macro-F1: 0.5640 | Macro-Recall: 0.6285
+  [Ranking] AUC-ROC: 0.7605 | AUC-PR: 0.2956
+  [Balance] G-Mean: 0.5092 | Specificity: 0.8250 | MCC: 0.1925
+
+--- Training on Task 9 (Timesteps: 1 to 45) ---
+[INFO] Task 9 class weight: 7.96 -> clipped: 7.96
+   -> Focal Loss Alpha: 0.8884
+[INFO] Snapshot nodes: 189721 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
+*** CL Metrics @ Task 9 ***
+  [Binary]  F1: 0.2475 | Precision: 0.2357 | Recall: 0.3874
+  [Macro]   Macro-F1: 0.5574 | Macro-Recall: 0.6152
+  [Ranking] AUC-ROC: 0.7415 | AUC-PR: 0.2737
+  [Balance] G-Mean: 0.4720 | Specificity: 0.8429 | MCC: 0.1751
+
+--- Training on Task 10 (Timesteps: 1 to 49) ---
+[INFO] Task 10 class weight: 8.05 -> clipped: 8.05
+   -> Focal Loss Alpha: 0.8895
+[INFO] Snapshot nodes: 203769 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
+*** CL Metrics @ Task 10 ***
+  [Binary]  F1: 0.2282 | Precision: 0.2267 | Recall: 0.3522
+  [Macro]   Macro-F1: 0.5527 | Macro-Recall: 0.6048
+  [Ranking] AUC-ROC: 0.7264 | AUC-PR: 0.2549
+  [Balance] G-Mean: 0.4429 | Specificity: 0.8574 | MCC: 0.1621
+All tasks trained.
+Total time: 63.42s

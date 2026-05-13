@@ -1,0 +1,330 @@
+/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:1343: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  current = float(metrics)
+
+--- Training on Task 1 (Timesteps: 1 to 5) ---
+[INFO] Task 1 class weight: 77.72 -> clipped: 20.00
+   -> Focal Loss Alpha: 0.9524
+[INFO] Snapshot nodes: 31541 (current task only)
+>>> [HOGRL] 正在为 Task 1 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 1 [WARM-UP, 仅供参考] ***
+  [Binary]  F1: 0.1333 | Precision: 0.0909 | Recall: 0.2500
+  [Macro]   Macro-F1: 0.5632 | Macro-Recall: 0.6197
+  [Ranking] AUC-ROC: 0.9214 | AUC-PR: 0.2005
+  [Balance] G-Mean: 0.4973 | Specificity: 0.9893 | MCC: 0.1449
+
+--- Training on Task 2 (Timesteps: 6 to 10) ---
+[INFO] Task 2 class weight: 7.60 -> clipped: 7.60
+   -> Focal Loss Alpha: 0.8838
+[INFO] Snapshot nodes: 26556 (current task only)
+>>> [HOGRL] 正在为 Task 2 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 2 ***
+  [Binary]  F1: 0.1278 | Precision: 0.0706 | Recall: 0.7569
+  [Macro]   Macro-F1: 0.5347 | Macro-Recall: 0.8244
+  [Ranking] AUC-ROC: 0.9141 | AUC-PR: 0.1433
+  [Balance] G-Mean: 0.8172 | Specificity: 0.8919 | MCC: 0.2063
+
+--- Training on Task 3 (Timesteps: 11 to 15) ---
+[INFO] Task 3 class weight: 4.05 -> clipped: 4.05
+   -> Focal Loss Alpha: 0.8019
+[INFO] Snapshot nodes: 16532 (current task only)
+>>> [HOGRL] 正在为 Task 3 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 3 ***
+  [Binary]  F1: 0.3391 | Precision: 0.2596 | Recall: 0.8198
+  [Macro]   Macro-F1: 0.6335 | Macro-Recall: 0.8459
+  [Ranking] AUC-ROC: 0.9298 | AUC-PR: 0.3725
+  [Balance] G-Mean: 0.8405 | Specificity: 0.8720 | MCC: 0.3686
+
+--- Training on Task 4 (Timesteps: 16 to 20) ---
+[INFO] Task 4 class weight: 5.89 -> clipped: 5.89
+   -> Focal Loss Alpha: 0.8549
+[INFO] Snapshot nodes: 16133 (current task only)
+>>> [HOGRL] 正在为 Task 4 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 4 ***
+  [Binary]  F1: 0.4064 | Precision: 0.3303 | Recall: 0.7879
+  [Macro]   Macro-F1: 0.6521 | Macro-Recall: 0.8163
+  [Ranking] AUC-ROC: 0.9038 | AUC-PR: 0.4315
+  [Balance] G-Mean: 0.8120 | Specificity: 0.8446 | MCC: 0.3833
+
+--- Training on Task 5 (Timesteps: 21 to 25) ---
+[INFO] Task 5 class weight: 9.53 -> clipped: 9.53
+   -> Focal Loss Alpha: 0.9050
+[INFO] Snapshot nodes: 20502 (current task only)
+>>> [HOGRL] 正在为 Task 5 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 5 ***
+  [Binary]  F1: 0.4563 | Precision: 0.3686 | Recall: 0.8066
+  [Macro]   Macro-F1: 0.6747 | Macro-Recall: 0.8211
+  [Ranking] AUC-ROC: 0.9106 | AUC-PR: 0.5042
+  [Balance] G-Mean: 0.8175 | Specificity: 0.8356 | MCC: 0.4217
+
+--- Training on Task 6 (Timesteps: 26 to 30) ---
+[INFO] Task 6 class weight: 3.08 -> clipped: 3.08
+   -> Focal Loss Alpha: 0.7552
+[INFO] Snapshot nodes: 12023 (current task only)
+>>> [HOGRL] 正在为 Task 6 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 6 ***
+  [Binary]  F1: 0.4614 | Precision: 0.3680 | Recall: 0.7947
+  [Macro]   Macro-F1: 0.6728 | Macro-Recall: 0.8087
+  [Ranking] AUC-ROC: 0.9027 | AUC-PR: 0.5145
+  [Balance] G-Mean: 0.8057 | Specificity: 0.8228 | MCC: 0.4159
+
+--- Training on Task 7 (Timesteps: 31 to 35) ---
+[INFO] Task 7 class weight: 4.88 -> clipped: 4.88
+   -> Focal Loss Alpha: 0.8300
+[INFO] Snapshot nodes: 18485 (current task only)
+>>> [HOGRL] 正在为 Task 7 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 7 ***
+  [Binary]  F1: 0.4644 | Precision: 0.3620 | Recall: 0.8138
+  [Macro]   Macro-F1: 0.6694 | Macro-Recall: 0.8094
+  [Ranking] AUC-ROC: 0.8996 | AUC-PR: 0.5023
+  [Balance] G-Mean: 0.8056 | Specificity: 0.8050 | MCC: 0.4194
+
+--- Training on Task 8 (Timesteps: 36 to 40) ---
+[INFO] Task 8 class weight: 14.64 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 19831 (current task only)
+>>> [HOGRL] 正在为 Task 8 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 8 ***
+  [Binary]  F1: 0.4408 | Precision: 0.3375 | Recall: 0.8125
+  [Macro]   Macro-F1: 0.6487 | Macro-Recall: 0.7953
+  [Ranking] AUC-ROC: 0.8770 | AUC-PR: 0.4593
+  [Balance] G-Mean: 0.7909 | Specificity: 0.7780 | MCC: 0.3956
+
+--- Training on Task 9 (Timesteps: 41 to 45) ---
+[INFO] Task 9 class weight: 14.50 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 28118 (current task only)
+>>> [HOGRL] 正在为 Task 9 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 9 ***
+  [Binary]  F1: 0.3929 | Precision: 0.3006 | Recall: 0.7445
+  [Macro]   Macro-F1: 0.6279 | Macro-Recall: 0.7648
+  [Ranking] AUC-ROC: 0.8534 | AUC-PR: 0.4092
+  [Balance] G-Mean: 0.7486 | Specificity: 0.7851 | MCC: 0.3525
+
+--- Training on Task 10 (Timesteps: 46 to 49) ---
+[INFO] Task 10 class weight: 32.82 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 14048 (current task only)
+>>> [HOGRL] 正在为 Task 10 预计算高阶图...
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+Pre-computing HOGRL graphs up to order 3 (Force COO)...
+  - A^2 computed (COO).
+  - A^3 computed (COO).
+*** CL Metrics @ Task 10 ***
+  [Binary]  F1: 0.3690 | Precision: 0.2840 | Recall: 0.6879
+  [Macro]   Macro-F1: 0.6161 | Macro-Recall: 0.7396
+  [Ranking] AUC-ROC: 0.8432 | AUC-PR: 0.3881
+  [Balance] G-Mean: 0.7127 | Specificity: 0.7913 | MCC: 0.3196
+All tasks trained.
+Total time: 64.83s

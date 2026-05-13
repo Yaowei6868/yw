@@ -7,8 +7,7 @@ datasets/
 runs/
 weights/
 checkpoints/
-paper_results/
-results_summary.csv
+
 
 # Model artifacts
 *.pt

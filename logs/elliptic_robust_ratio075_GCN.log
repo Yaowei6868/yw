@@ -1,0 +1,135 @@
+/usr/local/miniconda3/envs/py312/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:1343: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  current = float(metrics)
+
+--- Training on Task 1 (Timesteps: 1 to 5) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 76 -> 57, normal kept 5907
+[INFO] Task 1 class weight: 103.63 -> clipped: 20.00
+   -> Focal Loss Alpha: 0.9524
+[INFO] Snapshot nodes: 31541 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 0) ---
+*** CL Metrics @ Task 1 [WARM-UP, 仅供参考] ***
+  [Binary]  F1: 0.0882 | Precision: 0.0500 | Recall: 0.3750
+  [Macro]   Macro-F1: 0.5357 | Macro-Recall: 0.6723
+  [Ranking] AUC-ROC: 0.9223 | AUC-PR: 0.2749
+  [Balance] G-Mean: 0.6030 | Specificity: 0.9696 | MCC: 0.1276
+
+--- Training on Task 2 (Timesteps: 6 to 10) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 422 -> 316, normal kept 3209
+[INFO] Task 2 class weight: 10.16 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 26556 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 1) ---
+*** CL Metrics @ Task 2 ***
+  [Binary]  F1: 0.1554 | Precision: 0.0905 | Recall: 0.6042
+  [Macro]   Macro-F1: 0.5585 | Macro-Recall: 0.7665
+  [Ranking] AUC-ROC: 0.9334 | AUC-PR: 0.2026
+  [Balance] G-Mean: 0.7337 | Specificity: 0.9288 | MCC: 0.2120
+
+--- Training on Task 3 (Timesteps: 11 to 15) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 481 -> 361, normal kept 1947
+[INFO] Task 3 class weight: 5.39 -> clipped: 5.39
+   -> Focal Loss Alpha: 0.8436
+[INFO] Snapshot nodes: 16532 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 2) ---
+*** CL Metrics @ Task 3 ***
+  [Binary]  F1: 0.3132 | Precision: 0.2291 | Recall: 0.6794
+  [Macro]   Macro-F1: 0.6155 | Macro-Recall: 0.7739
+  [Ranking] AUC-ROC: 0.9127 | AUC-PR: 0.3403
+  [Balance] G-Mean: 0.7517 | Specificity: 0.8683 | MCC: 0.3093
+
+--- Training on Task 4 (Timesteps: 16 to 20) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 359 -> 269, normal kept 2116
+[INFO] Task 4 class weight: 7.87 -> clipped: 7.87
+   -> Focal Loss Alpha: 0.8872
+[INFO] Snapshot nodes: 16133 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 3) ---
+*** CL Metrics @ Task 4 ***
+  [Binary]  F1: 0.3964 | Precision: 0.3025 | Recall: 0.7211
+  [Macro]   Macro-F1: 0.6405 | Macro-Recall: 0.7719
+  [Ranking] AUC-ROC: 0.8928 | AUC-PR: 0.4014
+  [Balance] G-Mean: 0.7542 | Specificity: 0.8227 | MCC: 0.3528
+
+--- Training on Task 5 (Timesteps: 21 to 25) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 448 -> 336, normal kept 4269
+[INFO] Task 5 class weight: 12.71 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 20502 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 4) ---
+*** CL Metrics @ Task 5 ***
+  [Binary]  F1: 0.4596 | Precision: 0.3585 | Recall: 0.7599
+  [Macro]   Macro-F1: 0.6738 | Macro-Recall: 0.7929
+  [Ranking] AUC-ROC: 0.9002 | AUC-PR: 0.4528
+  [Balance] G-Mean: 0.7785 | Specificity: 0.8258 | MCC: 0.4120
+
+--- Training on Task 6 (Timesteps: 26 to 30) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 534 -> 400, normal kept 1647
+[INFO] Task 6 class weight: 4.12 -> clipped: 4.12
+   -> Focal Loss Alpha: 0.8046
+[INFO] Snapshot nodes: 12023 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 5) ---
+*** CL Metrics @ Task 6 ***
+  [Binary]  F1: 0.4761 | Precision: 0.3640 | Recall: 0.7959
+  [Macro]   Macro-F1: 0.6773 | Macro-Recall: 0.8016
+  [Ranking] AUC-ROC: 0.8984 | AUC-PR: 0.4531
+  [Balance] G-Mean: 0.7879 | Specificity: 0.8072 | MCC: 0.4292
+
+--- Training on Task 7 (Timesteps: 31 to 35) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 508 -> 381, normal kept 2481
+[INFO] Task 7 class weight: 6.51 -> clipped: 6.51
+   -> Focal Loss Alpha: 0.8669
+[INFO] Snapshot nodes: 18485 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 6) ---
+*** CL Metrics @ Task 7 ***
+  [Binary]  F1: 0.4627 | Precision: 0.3464 | Recall: 0.8149
+  [Macro]   Macro-F1: 0.6576 | Macro-Recall: 0.7920
+  [Ranking] AUC-ROC: 0.8885 | AUC-PR: 0.4371
+  [Balance] G-Mean: 0.7765 | Specificity: 0.7691 | MCC: 0.4138
+
+--- Training on Task 8 (Timesteps: 36 to 40) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 265 -> 199, normal kept 3880
+[INFO] Task 8 class weight: 19.50 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 19831 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 7) ---
+*** CL Metrics @ Task 8 ***
+  [Binary]  F1: 0.4319 | Precision: 0.3184 | Recall: 0.8280
+  [Macro]   Macro-F1: 0.6196 | Macro-Recall: 0.7710
+  [Ranking] AUC-ROC: 0.8574 | AUC-PR: 0.3992
+  [Balance] G-Mean: 0.7482 | Specificity: 0.7140 | MCC: 0.3816
+
+--- Training on Task 9 (Timesteps: 41 to 45) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 403 -> 302, normal kept 5844
+[INFO] Task 9 class weight: 19.35 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 28118 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 8) ---
+*** CL Metrics @ Task 9 ***
+  [Binary]  F1: 0.3852 | Precision: 0.2837 | Recall: 0.8026
+  [Macro]   Macro-F1: 0.5923 | Macro-Recall: 0.7511
+  [Ranking] AUC-ROC: 0.8351 | AUC-PR: 0.3570
+  [Balance] G-Mean: 0.7308 | Specificity: 0.6995 | MCC: 0.3418
+
+--- Training on Task 10 (Timesteps: 46 to 49) ---
+[ROBUST] train_fraud_ratio=0.75: fraud 60 -> 45, normal kept 1969
+[INFO] Task 10 class weight: 43.76 -> clipped: 10.00
+   -> Focal Loss Alpha: 0.9091
+[INFO] Snapshot nodes: 14048 (current task only)
+
+--- [CL Evaluation] Evaluating on all seen tasks (0 to 9) ---
+*** CL Metrics @ Task 10 ***
+  [Binary]  F1: 0.3921 | Precision: 0.2849 | Recall: 0.8206
+  [Macro]   Macro-F1: 0.5965 | Macro-Recall: 0.7595
+  [Ranking] AUC-ROC: 0.8417 | AUC-PR: 0.3611
+  [Balance] G-Mean: 0.7399 | Specificity: 0.6984 | MCC: 0.3519
+All tasks trained.
+Total time: 11.74s
